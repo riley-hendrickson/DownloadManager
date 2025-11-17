@@ -1,0 +1,100 @@
+classDiagram
+    class DownloadManager {
+        -ExecutorService executorService
+        -Map~String, Download~ activeDownloads
+        -DownloadConfig config
+        +startDownload(String url, String destination) Download
+        +pauseDownload(String downloadId)
+        +resumeDownload(String downloadId)
+        +cancelDownload(String downloadId)
+        +getDownload(String downloadId) Download
+        +shutdown()
+    }
+
+    class Download {
+        -String id
+        -String url
+        -String destination
+        -long totalSize
+        -AtomicLong downloadedBytes
+        -DownloadState state
+        -List~ChunkDownloader~ chunks
+        -CountDownLatch completionLatch
+        +start()
+        +pause()
+        +resume()
+        +cancel()
+        +getProgress() double
+        +getState() DownloadState
+        +awaitCompletion()
+    }
+
+    class ChunkDownloader {
+        -String url
+        -long startByte
+        -long endByte
+        -String tempFilePath
+        -AtomicLong bytesDownloaded
+        -volatile boolean paused
+        -volatile boolean cancelled
+        +call() ChunkResult
+        -downloadChunk()
+        +pause()
+        +resume()
+        +getBytesDownloaded() long
+    }
+
+    class ChunkResult {
+        -String tempFilePath
+        -long bytesDownloaded
+        -boolean success
+        -Exception error
+    }
+
+    class FileAssembler {
+        +assembleChunks(List~ChunkResult~ results, String destination)
+        -mergeFiles(List~String~ tempFiles, String output)
+        -cleanupTempFiles(List~String~ tempFiles)
+    }
+
+    class DownloadConfig {
+        -int numberOfThreads
+        -long chunkSize
+        -int connectionTimeout
+        -int maxRetries
+        -String tempDirectory
+    }
+
+    class DownloadState {
+        <<enumeration>>
+        PENDING
+        DOWNLOADING
+        PAUSED
+        COMPLETED
+        FAILED
+        CANCELLED
+    }
+
+    class ProgressTracker {
+        -Map~String, AtomicLong~ chunkProgress
+        +updateProgress(String chunkId, long bytes)
+        +getTotalProgress() long
+        +getProgressPercentage(long totalSize) double
+    }
+
+    class DownloadException {
+        <<exception>>
+        -String downloadId
+        -Throwable cause
+    }
+
+    DownloadManager "1" --> "*" Download : manages
+    DownloadManager --> DownloadConfig : uses
+    Download "1" --> "*" ChunkDownloader : creates
+    Download --> DownloadState : has
+    Download --> ProgressTracker : uses
+    Download --> FileAssembler : uses
+    ChunkDownloader --> ChunkResult : returns
+    FileAssembler --> ChunkResult : processes
+    DownloadManager ..> DownloadException : throws
+    Download ..> DownloadException : throws
