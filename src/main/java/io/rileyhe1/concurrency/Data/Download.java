@@ -12,7 +12,7 @@ public class Download
     private String url;
     private String destination;
     private long totalSize;
-    private AtomicLong downloadedBytes;
+    private AtomicLong downloadedBytes = new AtomicLong(0);
     private DownloadState state;
     private List<ChunkDownloader> chunks;
     private CountDownLatch completionLatch;
