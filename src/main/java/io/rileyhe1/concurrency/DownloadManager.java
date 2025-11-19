@@ -3,8 +3,8 @@ package io.rileyhe1.concurrency;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-import io.rileyhe1.concurrency.Data.Download;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
+import io.rileyhe1.concurrency.Util.Download;
 
 public class DownloadManager
 {
