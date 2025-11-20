@@ -1,7 +1,14 @@
 package io.rileyhe1.concurrency.Util;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.URL;
 import java.util.concurrent.Callable;
+import java.util.concurrent.StructuredTaskScope.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.rileyhe1.concurrency.Data.ChunkResult;
@@ -10,6 +17,8 @@ import io.rileyhe1.concurrency.Data.DownloadConfig;
 @SuppressWarnings("unused")
 public class ChunkDownloader implements Callable<ChunkResult>
 {
+    // constants
+    private static final int TIMEOUT_DURATION = 10000;
     // Configuration
     private final String url;
     private final long startByte;
@@ -26,14 +35,14 @@ public class ChunkDownloader implements Callable<ChunkResult>
 
     
 
-    public ChunkDownloader(String url, long startByte, long endByte, String tempFilePath, int chunkIndex,
+    public ChunkDownloader(String url, long startByte, long endByte, int chunkIndex,
             DownloadConfig config, ProgressTracker progressTracker, AtomicLong bytesDownloaded)
     {
         this.url = url;
         this.startByte = startByte;
         this.endByte = endByte;
-        this.tempFilePath = tempFilePath;
         this.chunkIndex = chunkIndex;
+        this.tempFilePath = config.getTempDirectory() + "/chunk" + this.chunkIndex + ".bin";
         this.config = config;
         this.progressTracker = progressTracker;
         this.paused = paused;
@@ -64,9 +73,53 @@ public class ChunkDownloader implements Callable<ChunkResult>
     private void downloadChunk() throws IOException, InterruptedException
     {
         // 1. Open HTTP connection with Range header
-        // 2. Open temp file
-        // 3. Download loop with pause/cancel checks
+        HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+        try
+        {
+            connection.setRequestProperty("Range", "bytes=" + startByte + "-" + endByte);
+            connection.setConnectTimeout(TIMEOUT_DURATION);
+            connection.setReadTimeout(TIMEOUT_DURATION);
+
+            try
+            {
+                connection.connect();
+            }
+            catch(SocketTimeoutException e)
+            {
+                System.out.println("Timeout Expired before connection was established");
+            }
+            catch(IOException e)
+            {
+                System.out.println("I/O error occurred while establishing connection");
+            }
+
+            int responseCode = connection.getResponseCode();
+            if(responseCode != HttpURLConnection.HTTP_PARTIAL)
+            {
+                throw new IOException("Server does not accept range requests, cannot download in chunks");
+            }
+            //  Open temp file and input stream from http url connection in try with resources block to ensure they're 
+            //  closed when we're done or when we encounter an exception
+            try (InputStream inputStream = connection.getInputStream();
+                 FileOutputStream outputStream = new FileOutputStream(tempFilePath))
+            {
+                // 3. Download loop with pause/cancel checks implemented later
+                byte[] buffer = new byte[config.getBufferSize()];
+                int bytesRead;
+                while((bytesRead = inputStream.read(buffer)) != 1)
+                {
+                    outputStream.write(buffer, 0, bytesRead);
+                    this.bytesDownloaded.addAndGet(bytesRead);
+                    progressTracker.updateProgress(chunkIndex, bytesRead);
+                }
+
+            }
         // 4. Close everything
+        }
+        finally
+        {
+            connection.disconnect();
+        }
     }
 
     public void pause()
