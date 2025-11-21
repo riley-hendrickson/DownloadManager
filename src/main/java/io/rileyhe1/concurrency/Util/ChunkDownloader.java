@@ -17,8 +17,6 @@ import io.rileyhe1.concurrency.Data.DownloadConfig;
 @SuppressWarnings("unused")
 public class ChunkDownloader implements Callable<ChunkResult>
 {
-    // constants
-    private static final int TIMEOUT_DURATION = 10000;
     // Configuration
     private final String url;
     private final long startByte;
@@ -122,8 +120,8 @@ public class ChunkDownloader implements Callable<ChunkResult>
         {
             connection.setRequestProperty("User-Agent", "Mozilla/5.0");
             connection.setRequestProperty("Range", "bytes=" + startByte + "-" + endByte);
-            connection.setConnectTimeout(TIMEOUT_DURATION);
-            connection.setReadTimeout(TIMEOUT_DURATION);
+            connection.setConnectTimeout(config.getConnectionTimeout());
+            connection.setReadTimeout(config.getReadTimeout());
 
             try
             {
@@ -151,7 +149,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
                 // 3. Download loop with pause/cancel checks implemented later
                 byte[] buffer = new byte[config.getBufferSize()];
                 int bytesRead;
-                while((bytesRead = inputStream.read(buffer)) != 1)
+                while((bytesRead = inputStream.read(buffer)) != -1)
                 {
                     outputStream.write(buffer, 0, bytesRead);
                     this.bytesDownloaded.addAndGet(bytesRead);
