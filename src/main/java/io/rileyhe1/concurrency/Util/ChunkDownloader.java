@@ -27,6 +27,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
     // State
     private volatile boolean paused = false;
     private volatile boolean cancelled = false;
+    private final Object pauseLock = new Object();
     private AtomicLong bytesDownloaded = new AtomicLong(0);
 
     
@@ -149,6 +150,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
                 int bytesRead;
                 while((bytesRead = inputStream.read(buffer)) != -1)
                 {
+                    handlePauseAndCancel();
                     outputStream.write(buffer, 0, bytesRead);
                     this.bytesDownloaded.addAndGet(bytesRead);
                     if(progressTracker != null) progressTracker.updateProgress(chunkIndex, bytesRead);
@@ -163,6 +165,18 @@ public class ChunkDownloader implements Callable<ChunkResult>
         }
     }
 
+    private void handlePauseAndCancel() throws InterruptedException
+    {
+        synchronized(pauseLock)
+        {
+            while(paused && !cancelled)
+            {
+                pauseLock.wait();
+            }
+        }
+        if(cancelled) throw new InterruptedException("Download Cancelled");
+    }
+
     public void pause()
     {
         paused = true;
@@ -171,6 +185,10 @@ public class ChunkDownloader implements Callable<ChunkResult>
     public void resume()
     {
         paused = false;
+        synchronized(pauseLock)
+        {
+            pauseLock.notifyAll();
+        }
     }
 
     public void cancel()
