@@ -38,6 +38,33 @@ public class ChunkDownloader implements Callable<ChunkResult>
     public ChunkDownloader(String url, long startByte, long endByte, int chunkIndex,
             DownloadConfig config, ProgressTracker progressTracker, AtomicLong bytesDownloaded)
     {
+        // validate parameters:
+        if(url == null || url.trim().isEmpty())
+        {
+            throw new IllegalArgumentException("URL cannot be null or empty");
+        }
+        if(startByte < 0)
+        {
+            throw new IllegalArgumentException("Start byte cannot be negative");
+        }
+        if(endByte < startByte)
+        {
+            throw new IllegalArgumentException("End byte cannot be less than start byte");
+        }
+        if(config == null)
+        {
+            throw new IllegalArgumentException("Config cannot be null");
+        }
+        if(chunkIndex < 0)
+        {
+            throw new IllegalArgumentException("Chunk index cannot be less than zero");
+        }
+        if(bytesDownloaded == null)
+        {
+            throw new IllegalArgumentException("Bytes downloaded cannot be null");
+        }
+
+        // assign fields
         this.url = url;
         this.startByte = startByte;
         this.endByte = endByte;
@@ -53,21 +80,44 @@ public class ChunkDownloader implements Callable<ChunkResult>
     @Override
     public ChunkResult call()
     {
-        Exception failureCause = null;
-        for(int attempt = 1; attempt < config.getMaxRetries(); attempt++)
+        Exception lastException = null;
+        for(int attempt = 0; attempt < config.getMaxRetries(); attempt++)
         {
             try
             {
                 downloadChunk();
-                return ChunkResult.success(tempFilePath, bytesDownloaded.get());
+                return ChunkResult.success(tempFilePath, bytesDownloaded.get(), chunkIndex);
             }
-            catch(Exception e)
+            catch(InterruptedException e)
             {
-                // retry logic:
-                failureCause = e;
+                // thread was interrupted, so we want to fail immediately and not do any retries:
+                Thread.currentThread().interrupt();
+                return ChunkResult.failure(e, bytesDownloaded.get(), chunkIndex);
             }
+            catch(IOException e)
+            {
+                lastException = e;
+
+                // log the attempt:
+                System.err.println("Chunk " + this.chunkIndex + " attempt " + (attempt + 1) + " failed: " + e.getMessage());
+
+                // if this was not the last attempt, wait for a retry:
+                if(attempt < config.getMaxRetries() - 1)
+                {
+                    try
+                    {
+                        Thread.sleep(config.getRetryDelayMS());
+                    }
+                    catch(InterruptedException ie)
+                    {
+                        Thread.currentThread().interrupt();
+                        return ChunkResult.failure(ie, bytesDownloaded.get(), chunkIndex);
+                    }
+                }
+            }
+
         }
-        return ChunkResult.failure(failureCause);
+        return ChunkResult.failure(lastException, bytesDownloaded.get(), chunkIndex);
     }
 
     private void downloadChunk() throws IOException, InterruptedException
@@ -76,6 +126,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
         HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
         try
         {
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0");
             connection.setRequestProperty("Range", "bytes=" + startByte + "-" + endByte);
             connection.setConnectTimeout(TIMEOUT_DURATION);
             connection.setReadTimeout(TIMEOUT_DURATION);
@@ -96,7 +147,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
             int responseCode = connection.getResponseCode();
             if(responseCode != HttpURLConnection.HTTP_PARTIAL)
             {
-                throw new IOException("Server does not accept range requests, cannot download in chunks");
+                throw new IOException("Server does not accept range requests, cannot download in chunks. Response: " + responseCode);
             }
             //  Open temp file and input stream from http url connection in try with resources block to ensure they're 
             //  closed when we're done or when we encounter an exception
