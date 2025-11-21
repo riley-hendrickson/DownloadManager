@@ -28,7 +28,7 @@ public class ChunkResult
     {
         return bytesDownloaded;
     }
-    public boolean isSuccessFul()
+    public boolean isSuccessful()
     {
         return success;
     }

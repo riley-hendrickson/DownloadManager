@@ -6,15 +6,13 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.net.URL;
 import java.util.concurrent.Callable;
-import java.util.concurrent.StructuredTaskScope.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.rileyhe1.concurrency.Data.ChunkResult;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
 
-@SuppressWarnings("unused")
+// @SuppressWarnings("unused")
 public class ChunkDownloader implements Callable<ChunkResult>
 {
     // Configuration
