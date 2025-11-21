@@ -139,6 +139,6 @@ public class ChunkDownloader implements Callable<ChunkResult>
 
     public long getBytesDownloaded()
     {
-        return 0;
+        return this.bytesDownloaded.get();
     }
 }
