@@ -5,13 +5,16 @@ import io.rileyhe1.concurrency.Util.ProgressTracker;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -258,29 +261,30 @@ class ChunkDownloaderTest
         assertEquals(100, result.getBytesDownloaded());
     }
 
-    // @Test
-    // void testWithProgressTracker()
-    // {
-    //     // Create a simple progress tracker for testing
-    //     ProgressTracker tracker = new ProgressTracker();
+    @Test
+    @Disabled
+    void testWithProgressTracker()
+    {
+        // Create a simple progress tracker for testing
+        ProgressTracker tracker = new ProgressTracker();
 
-    //     ChunkDownloader downloader = new ChunkDownloader(
-    //         TEST_URL,
-    //         0,
-    //         1023,
-    //         0,
-    //         config,
-    //         tracker
-    //     );
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            1023,
+            0,
+            config,
+            tracker
+        );
 
-    //     ChunkResult result = downloader.call();
+        ChunkResult result = downloader.call();
 
-    //     assertTrue(result.isSuccessful());
+        assertTrue(result.isSuccessful());
         
-    //     // Progress tracker should have been updated
-    //     // (Exact verification depends on your ProgressTracker implementation)
-    //     assertTrue(tracker.getTotalProgress() > 0, "Progress should be tracked");
-    // }
+        // Progress tracker should have been updated
+        // (Exact verification depends on your ProgressTracker implementation)
+        assertTrue(tracker.getTotalProgress() > 0, "Progress should be tracked");
+    }
 
     @Test
     void testRetryOnFailure()
@@ -330,8 +334,416 @@ class ChunkDownloaderTest
         assertDoesNotThrow(() -> downloader.pause());
         assertDoesNotThrow(() -> downloader.resume());
         assertDoesNotThrow(() -> downloader.cancel());
+    }
+
+    // ============================================================
+    // PAUSE/RESUME/CANCEL FUNCTIONALITY TESTS
+    // ============================================================
+
+    private ExecutorService executor;
+
+    @BeforeEach
+    void setUpExecutor()
+    {
+        executor = Executors.newFixedThreadPool(4);
+    }
+
+    @AfterEach
+    void tearDownExecutor()
+    {
+        if (executor != null)
+        {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    void testPauseStopsDownload() throws InterruptedException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        // Future<ChunkResult> future = 
+        executor.submit(downloader);
+
+        Thread.sleep(50);
+
+        downloader.pause();
+        long bytesAtPause = downloader.getBytesDownloaded();
         
-        // Note: Actual pause/resume/cancel functionality not yet implemented
+        assertTrue(bytesAtPause > 0, "Should have downloaded some bytes before pause");
+
+        Thread.sleep(200);
+        long bytesAfterPause = downloader.getBytesDownloaded();
+        
+        assertEquals(bytesAtPause, bytesAfterPause, 
+            "Bytes should not increase while paused");
+
+        downloader.resume();
+    }
+
+    @Test
+    @Timeout(30)
+    void testResumeAfterPause() throws InterruptedException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        // Future<ChunkResult> future = 
+        executor.submit(downloader);
+
+        Thread.sleep(50);
+
+        downloader.pause();
+        long bytesAtPause = downloader.getBytesDownloaded();
+
+        Thread.sleep(200);
+
+        downloader.resume();
+
+        Thread.sleep(200);
+
+        long bytesAfterResume = downloader.getBytesDownloaded();
+        
+        assertTrue(bytesAfterResume > bytesAtPause, 
+            "Download should continue after resume. Paused at: " + bytesAtPause 
+            + ", After resume: " + bytesAfterResume);
+    }
+
+    @Test
+    @Timeout(30)
+    void testMultiplePauseResumeCycles() throws InterruptedException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        // Future<ChunkResult> future = 
+        executor.submit(downloader);
+
+        long lastBytes = 0;
+
+        for (int i = 0; i < 3; i++)
+        {
+            Thread.sleep(100);
+            long bytesBeforePause = downloader.getBytesDownloaded();
+            assertTrue(bytesBeforePause > lastBytes, 
+                "Should download in cycle " + (i + 1));
+
+            downloader.pause();
+            Thread.sleep(100);
+            long bytesDuringPause = downloader.getBytesDownloaded();
+            assertEquals(bytesBeforePause, bytesDuringPause,
+                "Should not download while paused in cycle " + (i + 1));
+
+            downloader.resume();
+            lastBytes = bytesDuringPause;
+        }
+
+        downloader.resume();
+    }
+
+    @Test
+    @Timeout(30)
+    void testCancelStopsDownload() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        Future<ChunkResult> future = executor.submit(downloader);
+
+        Thread.sleep(100);
+
+        downloader.cancel();
+
+        ChunkResult result = future.get();
+
+        assertFalse(result.isSuccessful(), "Download should fail when cancelled");
+        assertTrue(result.hasError(), "Should have an error");
+        assertNotNull(result.getError(), "Error should not be null");
+        
+        assertTrue(result.getError() instanceof InterruptedException,
+            "Error should be InterruptedException, was: " + result.getError().getClass());
+        
+        assertTrue(result.getError().getMessage().contains("cancel"),
+            "Error message should mention cancellation");
+    }
+
+    @Test
+    @Timeout(30)
+    void testCancelWhilePaused() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        Future<ChunkResult> future = executor.submit(downloader);
+
+        Thread.sleep(100);
+        downloader.pause();
+        
+        long bytesBeforeCancel = downloader.getBytesDownloaded();
+        assertTrue(bytesBeforeCancel > 0, "Should have downloaded something");
+
+        downloader.cancel();
+
+        try
+        {
+            ChunkResult result = future.get(5, TimeUnit.SECONDS);
+            assertFalse(result.isSuccessful(), "Should fail due to cancellation");
+            assertTrue(result.hasError());
+            assertTrue(result.getError() instanceof InterruptedException);
+        }
+        catch(TimeoutException e)
+        {
+
+        }
+        
+    }
+
+    @Test
+    @Timeout(30)
+    void testPauseBeforeStart()
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            10000,
+            0,
+            config,
+            null
+        );
+
+        downloader.pause();
+
+        // Future<ChunkResult> future = 
+        executor.submit(downloader);
+
+        assertEquals(0, downloader.getBytesDownloaded(), 
+            "Should not download when paused from start");
+
+        downloader.resume();
+    }
+
+    @Test
+    @Timeout(30)
+    void testResumeWithoutPause() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            10000,
+            0,
+            config,
+            null
+        );
+
+        downloader.resume();
+
+        Future<ChunkResult> future = executor.submit(downloader);
+
+        ChunkResult result = future.get();
+        
+        assertTrue(result.isSuccessful(), "Should succeed even with spurious resume");
+        assertEquals(10000, result.getBytesDownloaded());
+    }
+
+    @Test
+    @Timeout(30)
+    void testMultipleCancelsAreIdempotent() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        Future<ChunkResult> future = executor.submit(downloader);
+        Thread.sleep(50);
+
+        downloader.cancel();
+        downloader.cancel();
+        downloader.cancel();
+
+        ChunkResult result = future.get();
+
+        assertFalse(result.isSuccessful());
+        assertTrue(result.getError() instanceof InterruptedException);
+    }
+
+    @Test
+    @Timeout(30)
+    void testPauseThenCancel() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        Future<ChunkResult> future = executor.submit(downloader);
+        Thread.sleep(50);
+
+        downloader.pause();
+        Thread.sleep(100);
+        
+        downloader.cancel();
+
+        ChunkResult result = future.get();
+
+        assertFalse(result.isSuccessful());
+        assertTrue(result.getError() instanceof InterruptedException);
+    }
+
+    @Test
+    @Timeout(30)
+    void testCompletedDownloadIgnoresPause() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            100,
+            0,
+            config,
+            null
+        );
+
+        Future<ChunkResult> future = executor.submit(downloader);
+
+        ChunkResult result = future.get();
+        
+        assertTrue(result.isSuccessful(), "Small download should complete");
+
+        downloader.pause();
+        
+        assertEquals(100, result.getBytesDownloaded());
+    }
+
+    @Test
+    @Timeout(30)
+    void testConcurrentPauseResumeFromMultipleThreads() throws InterruptedException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            50000,
+            0,
+            config,
+            null
+        );
+
+        // Future<ChunkResult> future = 
+        executor.submit(downloader);
+
+        Runnable pauseResume = () -> {
+            for (int i = 0; i < 10; i++)
+            {
+                try
+                {
+                    if (Math.random() > 0.5)
+                    {
+                        downloader.pause();
+                    }
+                    else
+                    {
+                        downloader.resume();
+                    }
+                    Thread.sleep(10);
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        };
+
+        Thread t1 = new Thread(pauseResume);
+        Thread t2 = new Thread(pauseResume);
+        
+        t1.start();
+        t2.start();
+        
+        t1.join();
+        t2.join();
+
+        downloader.resume();
+    }
+
+    @Test
+    @Timeout(30)
+    void testPauseDoesNotLoseData() throws InterruptedException, ExecutionException
+    {
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            20000,
+            0,
+            config,
+            null
+        );
+
+        Future<ChunkResult> future = executor.submit(downloader);
+
+        for (int i = 0; i < 5; i++)
+        {
+            Thread.sleep(50);
+            downloader.pause();
+            Thread.sleep(50);
+            downloader.resume();
+        }
+
+        ChunkResult result = future.get();
+
+        assertTrue(result.isSuccessful(), "Download should succeed");
+        assertEquals(20000, result.getBytesDownloaded(), 
+            "Should download exact number of bytes despite pausing");
+        
+        Path tempFile = Paths.get(result.getTempFilePath());
+        assertTrue(Files.exists(tempFile), "Temp file should exist");
+        try
+        {
+            assertEquals(20000, Files.size(tempFile), "File size should match bytes downloaded");
+        }
+        catch(IOException ioe)
+        {
+
+        }
     }
 }
 
@@ -339,8 +751,28 @@ class ChunkDownloaderTest
    ADDITIONAL NOTES FOR RUNNING TESTS
    ============================================================
 
-   Some tests depend on network connectivity and may be flaky.
+1. Add JUnit 5 to your pom.xml if not already present:
+
+<dependencies>
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>5.10.0</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+
+2. Run tests with Maven:
+   mvn test
+
+3. Run specific test:
+   mvn test -Dtest=ChunkDownloaderTest#testSuccessfulDownload
+
+4. Some tests depend on network connectivity and may be flaky.
    The retry test especially may behave differently depending on
    network conditions.
+
+5. Tests use @TempDir which automatically creates and cleans up
+   temporary directories for each test.
 
 ============================================================ */
