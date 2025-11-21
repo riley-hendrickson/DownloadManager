@@ -8,7 +8,7 @@ public class ProgressTracker
 {
     private Map<String, AtomicLong> chunkProgress;
     
-    public void updateProgress(Integer chunkId, long bytes)
+    public void updateProgress(Integer chunkIndex, long bytes)
     {
 
     }

@@ -36,7 +36,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
     
 
     public ChunkDownloader(String url, long startByte, long endByte, int chunkIndex,
-            DownloadConfig config, ProgressTracker progressTracker, AtomicLong bytesDownloaded)
+            DownloadConfig config, ProgressTracker progressTracker)
     {
         // validate parameters:
         if(url == null || url.trim().isEmpty())
@@ -59,10 +59,6 @@ public class ChunkDownloader implements Callable<ChunkResult>
         {
             throw new IllegalArgumentException("Chunk index cannot be less than zero");
         }
-        if(bytesDownloaded == null)
-        {
-            throw new IllegalArgumentException("Bytes downloaded cannot be null");
-        }
 
         // assign fields
         this.url = url;
@@ -72,9 +68,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
         this.tempFilePath = config.getTempDirectory() + "/chunk" + this.chunkIndex + ".bin";
         this.config = config;
         this.progressTracker = progressTracker;
-        this.paused = paused;
-        this.cancelled = cancelled;
-        this.bytesDownloaded = bytesDownloaded;
+        this.bytesDownloaded = new AtomicLong(0);
     }
 
     @Override
@@ -161,7 +155,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
                 {
                     outputStream.write(buffer, 0, bytesRead);
                     this.bytesDownloaded.addAndGet(bytesRead);
-                    progressTracker.updateProgress(chunkIndex, bytesRead);
+                    if(progressTracker != null) progressTracker.updateProgress(chunkIndex, bytesRead);
                 }
 
             }
@@ -169,7 +163,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
         }
         finally
         {
-            connection.disconnect();
+            if(connection != null) connection.disconnect();
         }
     }
 
