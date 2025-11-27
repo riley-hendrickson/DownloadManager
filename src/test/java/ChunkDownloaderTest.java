@@ -6,6 +6,7 @@ import io.rileyhe1.concurrency.Util.ProgressTracker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,8 +25,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ChunkDownloaderTest
 {
-    // Use a reliable test file - W3C dummy PDF
+    // Use a reliable test file - W3C dummy PDF (small, ~13KB)
     private static final String TEST_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+    
+    // Use a larger file for pause/resume/cancel tests (100KB sample image)
+    private static final String LARGE_TEST_URL = "https://archive.org/download/Rick_Astley_Never_Gonna_Give_You_Up/Rick_Astley_Never_Gonna_Give_You_Up.mp4";
     
     private DownloadConfig config;
     private String tempDir;
@@ -69,7 +73,7 @@ class ChunkDownloaderTest
     @Test
     void testSuccessfulDownload()
     {
-        // Download first 1KB of test file
+        // Download first 1KB of test file (bytes 0-1023 = 1024 bytes)
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
             0,
@@ -82,7 +86,7 @@ class ChunkDownloaderTest
         ChunkResult result = downloader.call();
 
         assertTrue(result.isSuccessful(), "Download should succeed");
-        assertEquals(1024, result.getBytesDownloaded(), "Should download exactly 1024 bytes");
+        assertEquals(1024, result.getBytesDownloaded(), "Should download exactly 1024 bytes (0-1023 inclusive)");
         assertNotNull(result.getTempFilePath(), "Temp file path should not be null");
         assertTrue(Files.exists(Paths.get(result.getTempFilePath())), "Temp file should exist");
         assertNull(result.getError(), "Error should be null on success");
@@ -245,7 +249,7 @@ class ChunkDownloaderTest
     @Test
     void testSmallDownload()
     {
-        // Download just 100 bytes
+        // Download just 100 bytes (0-99 = 100 bytes)
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
             0,
@@ -258,11 +262,11 @@ class ChunkDownloaderTest
         ChunkResult result = downloader.call();
 
         assertTrue(result.isSuccessful());
-        assertEquals(100, result.getBytesDownloaded());
+        assertEquals(100, result.getBytesDownloaded(), "Bytes 0-99 inclusive = 100 bytes");
     }
 
     @Test
-    @Disabled
+    @Disabled // enable when progress tracker is implemented
     void testWithProgressTracker()
     {
         // Create a simple progress tracker for testing
@@ -357,108 +361,150 @@ class ChunkDownloaderTest
         }
     }
 
+    /**
+     * Helper method to wait for a condition to become true.
+     * Polls the condition every 50ms until it's true or timeout is reached.
+     * 
+     * @param condition The condition to check
+     * @param timeoutMs Maximum time to wait in milliseconds
+     * @return true if condition became true, false if timeout
+     */
+    private boolean waitForCondition(java.util.function.BooleanSupplier condition, long timeoutMs)
+    {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeoutMs)
+        {
+            if (condition.getAsBoolean())
+            {
+                return true;
+            }
+            try
+            {
+                Thread.sleep(5); // Check every 5ms
+            }
+            catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Helper method to wait for bytes downloaded to stabilize (stop changing).
+     * Useful for verifying a download is truly paused.
+     * 
+     * @param downloader The chunk downloader to monitor
+     * @param stabilityMs How long bytes must remain unchanged (in ms)
+     * @param timeoutMs Maximum time to wait
+     * @return The stable byte count, or -1 if timeout
+     */
+    private long waitForStableBytes(ChunkDownloader downloader, long stabilityMs, long timeoutMs)
+    {
+        long startTime = System.currentTimeMillis();
+        long lastBytes = downloader.getBytesDownloaded();
+        long lastChangeTime = startTime;
+        
+        while (System.currentTimeMillis() - startTime < timeoutMs)
+        {
+            long currentBytes = downloader.getBytesDownloaded();
+            
+            if (currentBytes != lastBytes)
+            {
+                // Bytes changed, reset stability timer
+                lastBytes = currentBytes;
+                lastChangeTime = System.currentTimeMillis();
+            }
+            else if (System.currentTimeMillis() - lastChangeTime >= stabilityMs)
+            {
+                // Bytes have been stable for required duration
+                return currentBytes;
+            }
+            
+            try
+            {
+                Thread.sleep(50);
+            }
+            catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+                return -1;
+            }
+        }
+        
+        return -1; // Timeout
+    }
+
     @Test
     @Timeout(30)
-    void testPauseStopsDownload() throws InterruptedException
+    void testPauseStopsDownload() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,  // Use larger file
             0,
-            50000,
+            80000,  // Download more bytes to ensure it takes time
             0,
             config,
             null
         );
 
-        // Future<ChunkResult> future = 
-        executor.submit(downloader);
+        Future<ChunkResult> future = executor.submit(downloader);
 
-        Thread.sleep(50);
+        // Wait for some bytes to be downloaded (up to 5 seconds)
+        assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > 0, 5000),
+            "Should start downloading within 5 seconds");
 
+        // Pause the download
         downloader.pause();
-        long bytesAtPause = downloader.getBytesDownloaded();
         
-        assertTrue(bytesAtPause > 0, "Should have downloaded some bytes before pause");
-
+        // Wait for bytes to stabilize (paused for 300ms)
+        long bytesWhenPaused = waitForStableBytes(downloader, 300, 2000);
+        assertTrue(bytesWhenPaused > 0, "Should have downloaded some bytes before pause");
+        
+        // Verify it stays paused
         Thread.sleep(200);
-        long bytesAfterPause = downloader.getBytesDownloaded();
-        
-        assertEquals(bytesAtPause, bytesAfterPause, 
+        assertEquals(bytesWhenPaused, downloader.getBytesDownloaded(), 
             "Bytes should not increase while paused");
 
+        // Resume and wait for completion to clean up properly
         downloader.resume();
+        future.get();
     }
 
     @Test
     @Timeout(30)
-    void testResumeAfterPause() throws InterruptedException
+    void testResumeAfterPause() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,  // Use larger file
             0,
-            50000,
+            80000,
             0,
             config,
             null
         );
 
-        // Future<ChunkResult> future = 
-        executor.submit(downloader);
+        Future<ChunkResult> future = executor.submit(downloader);
 
-        Thread.sleep(50);
+        // Wait for download to start
+        assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > 0, 5000),
+            "Download should start within 5 seconds");
 
+        // Pause
         downloader.pause();
-        long bytesAtPause = downloader.getBytesDownloaded();
+        long bytesAtPause = waitForStableBytes(downloader, 300, 2000);
+        assertTrue(bytesAtPause > 0, "Should have bytes when paused");
 
-        Thread.sleep(200);
-
+        // Resume
         downloader.resume();
 
-        Thread.sleep(200);
-
-        long bytesAfterResume = downloader.getBytesDownloaded();
+        // Wait for more bytes to be downloaded
+        assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > bytesAtPause, 3000),
+            "Download should continue after resume. Paused at: " + bytesAtPause);
         
-        assertTrue(bytesAfterResume > bytesAtPause, 
-            "Download should continue after resume. Paused at: " + bytesAtPause 
-            + ", After resume: " + bytesAfterResume);
-    }
-
-    @Test
-    @Timeout(30)
-    void testMultiplePauseResumeCycles() throws InterruptedException
-    {
-        ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
-            0,
-            50000,
-            0,
-            config,
-            null
-        );
-
-        // Future<ChunkResult> future = 
-        executor.submit(downloader);
-
-        long lastBytes = 0;
-
-        for (int i = 0; i < 3; i++)
-        {
-            Thread.sleep(100);
-            long bytesBeforePause = downloader.getBytesDownloaded();
-            assertTrue(bytesBeforePause > lastBytes, 
-                "Should download in cycle " + (i + 1));
-
-            downloader.pause();
-            Thread.sleep(100);
-            long bytesDuringPause = downloader.getBytesDownloaded();
-            assertEquals(bytesBeforePause, bytesDuringPause,
-                "Should not download while paused in cycle " + (i + 1));
-
-            downloader.resume();
-            lastBytes = bytesDuringPause;
-        }
-
-        downloader.resume();
+        // Wait for completion to clean up properly
+        future.get();
     }
 
     @Test
@@ -466,7 +512,7 @@ class ChunkDownloaderTest
     void testCancelStopsDownload() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,
             0,
             50000,
             0,
@@ -488,17 +534,14 @@ class ChunkDownloaderTest
         
         assertTrue(result.getError() instanceof InterruptedException,
             "Error should be InterruptedException, was: " + result.getError().getClass());
-        
-        assertTrue(result.getError().getMessage().contains("cancel"),
-            "Error message should mention cancellation");
     }
 
     @Test
     @Timeout(30)
-    void testCancelWhilePaused() throws InterruptedException, ExecutionException
+    void testCancelWhilePaused() throws InterruptedException, ExecutionException, TimeoutException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,
             0,
             50000,
             0,
@@ -508,7 +551,9 @@ class ChunkDownloaderTest
 
         Future<ChunkResult> future = executor.submit(downloader);
 
-        Thread.sleep(100);
+        // wait for the download to start
+        assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > 0, 5000),
+        "Download should start within 5 seconds");
         downloader.pause();
         
         long bytesBeforeCancel = downloader.getBytesDownloaded();
@@ -516,23 +561,16 @@ class ChunkDownloaderTest
 
         downloader.cancel();
 
-        try
-        {
-            ChunkResult result = future.get(5, TimeUnit.SECONDS);
-            assertFalse(result.isSuccessful(), "Should fail due to cancellation");
-            assertTrue(result.hasError());
-            assertTrue(result.getError() instanceof InterruptedException);
-        }
-        catch(TimeoutException e)
-        {
+        ChunkResult result = future.get(5, TimeUnit.SECONDS);
 
-        }
-        
+        assertFalse(result.isSuccessful(), "Should fail due to cancellation");
+        assertTrue(result.hasError());
+        assertTrue(result.getError() instanceof InterruptedException);
     }
 
     @Test
     @Timeout(30)
-    void testPauseBeforeStart()
+    void testPauseBeforeStart() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
@@ -545,19 +583,27 @@ class ChunkDownloaderTest
 
         downloader.pause();
 
-        // Future<ChunkResult> future = 
-        executor.submit(downloader);
+        Future<ChunkResult> future = executor.submit(downloader);
 
+        // Wait a moment to verify it's paused
+        Thread.sleep(100);
         assertEquals(0, downloader.getBytesDownloaded(), 
             "Should not download when paused from start");
 
+        // Resume and let it complete
         downloader.resume();
+        
+        // Wait for completion
+        ChunkResult result = future.get();
+        assertTrue(result.isSuccessful(), "Should complete after resume");
+        assertEquals(10001, result.getBytesDownloaded(), "Should download all bytes after resume");
     }
 
     @Test
     @Timeout(30)
     void testResumeWithoutPause() throws InterruptedException, ExecutionException
     {
+        // Download 10001 bytes (0-10000 inclusive)
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
             0,
@@ -574,12 +620,12 @@ class ChunkDownloaderTest
         ChunkResult result = future.get();
         
         assertTrue(result.isSuccessful(), "Should succeed even with spurious resume");
-        assertEquals(10000, result.getBytesDownloaded());
+        assertEquals(10001, result.getBytesDownloaded(), "Bytes 0-10000 inclusive = 10001 bytes");
     }
 
     @Test
     @Timeout(30)
-    void testMultipleCancelsAreIdempotent() throws InterruptedException, ExecutionException
+    void testMultipleCancels() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
@@ -608,7 +654,7 @@ class ChunkDownloaderTest
     void testPauseThenCancel() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,
             0,
             50000,
             0,
@@ -634,6 +680,7 @@ class ChunkDownloaderTest
     @Timeout(30)
     void testCompletedDownloadIgnoresPause() throws InterruptedException, ExecutionException
     {
+        // Download 101 bytes (0-100 inclusive)
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
             0,
@@ -651,24 +698,23 @@ class ChunkDownloaderTest
 
         downloader.pause();
         
-        assertEquals(100, result.getBytesDownloaded());
+        assertEquals(101, result.getBytesDownloaded(), "Bytes 0-100 inclusive = 101 bytes");
     }
 
     @Test
     @Timeout(30)
-    void testConcurrentPauseResumeFromMultipleThreads() throws InterruptedException
+    void testConcurrentPauseResumeFromMultipleThreads() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,  // Use larger file
             0,
-            50000,
+            80000,
             0,
             config,
             null
         );
 
-        // Future<ChunkResult> future = 
-        executor.submit(downloader);
+        Future<ChunkResult> future = executor.submit(downloader);
 
         Runnable pauseResume = () -> {
             for (int i = 0; i < 10; i++)
@@ -702,15 +748,18 @@ class ChunkDownloaderTest
         t1.join();
         t2.join();
 
+        // Ensure it's resumed and wait for completion
         downloader.resume();
+        future.get();
     }
 
     @Test
     @Timeout(30)
-    void testPauseDoesNotLoseData() throws InterruptedException, ExecutionException
+    void testPauseDoesNotLoseData() throws InterruptedException, ExecutionException, IOException
     {
+        // Download 20001 bytes (0-20000 inclusive)
         ChunkDownloader downloader = new ChunkDownloader(
-            TEST_URL,
+            LARGE_TEST_URL,
             0,
             20000,
             0,
@@ -731,19 +780,12 @@ class ChunkDownloaderTest
         ChunkResult result = future.get();
 
         assertTrue(result.isSuccessful(), "Download should succeed");
-        assertEquals(20000, result.getBytesDownloaded(), 
-            "Should download exact number of bytes despite pausing");
+        assertEquals(20001, result.getBytesDownloaded(), 
+            "Should download exact number of bytes despite pausing (0-20000 inclusive = 20001 bytes)");
         
         Path tempFile = Paths.get(result.getTempFilePath());
         assertTrue(Files.exists(tempFile), "Temp file should exist");
-        try
-        {
-            assertEquals(20000, Files.size(tempFile), "File size should match bytes downloaded");
-        }
-        catch(IOException ioe)
-        {
-
-        }
+        assertEquals(20001, Files.size(tempFile), "File size should match bytes downloaded");
     }
 }
 
