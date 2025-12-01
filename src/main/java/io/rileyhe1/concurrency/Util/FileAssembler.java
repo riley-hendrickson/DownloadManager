@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.rileyhe1.concurrency.Data.ChunkResult;
 
@@ -17,11 +19,10 @@ public class FileAssembler
 
     public void assembleChunks(List<ChunkResult> results, String destination) throws IOException
     {
+        // validate all chunks were successful and that we have all chunks compiled
+        validateChunks(results);
         // sort by chunk index for easier assembly
         results = sortChunks(results);
-        // validate all chunks were successful and that we have all chunks
-        // compiled
-        validateChunks(results);
         // generate list of each chunk's associated tempFile location
         List<String> tempFiles = new ArrayList<>();
         for (int i = 0; i < results.size(); i++)
@@ -36,16 +37,21 @@ public class FileAssembler
 
     private void validateChunks(List<ChunkResult> results) throws IOException
     {
-        if (results == null || results.isEmpty())
-            throw new IOException("Results list is null/contains no chunks");
-        for (int i = 0; i < results.size(); i++)
+        if (results == null || results.isEmpty()) throw new IOException("Results list is null/contains no chunks");
+        int largestIndex = 0;
+        Set<Integer> seenIndices = new HashSet<>();
+        for(ChunkResult result : results)
         {
-            ChunkResult current = results.get(i);
-            if (current.getChunkIndex() != i)
+            largestIndex = largestIndex > result.getChunkIndex() ? largestIndex : result.getChunkIndex();
+            seenIndices.add(result.getChunkIndex());
+        }
+        for (int i = 0; i <= largestIndex; i++)
+        {
+            if (!seenIndices.contains(i))
             {
-                throw new IOException("Expected Chunk Index did not match, there may be missing chunks. Expected: " + i
-                        + ", Actual: " + current.getChunkIndex());
+                throw new IOException("Cannot assemble chunks, chunk " + i + " is missing");
             }
+            ChunkResult current = results.get(i);
             if (!current.isSuccessful())
                 throw new IOException("Not all chunks succeeded: Chunk " + current.getChunkIndex() + " failed.");
         }
@@ -57,8 +63,10 @@ public class FileAssembler
         for (int i = 0; i < results.size(); i++)
         {
             sorted.add(null);
-            ChunkResult cur = results.get(i);
-            sorted.set(cur.getChunkIndex(), cur);
+        }
+        for(ChunkResult result : results)
+        {
+            sorted.set(result.getChunkIndex(), result);
         }
         return sorted;
     }
