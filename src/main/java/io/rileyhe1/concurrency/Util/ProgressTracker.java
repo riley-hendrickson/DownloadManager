@@ -18,14 +18,8 @@ public class ProgressTracker
 
     public void updateProgress(Integer chunkIndex, long bytes)
     {
-        if(chunkProgress.contains(chunkIndex))
-        {
-            chunkProgress.get(chunkIndex).addAndGet(bytes);
-        }
-        else
-        {
-            chunkProgress.put(chunkIndex, new AtomicLong(bytes));
-        }
+        chunkProgress.computeIfAbsent(chunkIndex, (k) -> new AtomicLong(0))
+            .addAndGet(bytes);
     }
 
     public long getTotalProgress()
