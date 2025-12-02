@@ -270,7 +270,7 @@ class ChunkDownloaderTest
     void testWithProgressTracker()
     {
         // Create a simple progress tracker for testing
-        ProgressTracker tracker = new ProgressTracker();
+        ProgressTracker tracker = new ProgressTracker(1024);
 
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
