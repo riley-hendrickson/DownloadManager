@@ -15,9 +15,9 @@ import io.rileyhe1.concurrency.Data.ChunkResult;
 // @SuppressWarnings("unused")
 public class FileAssembler
 {
-    private final int BUFFER_SIZE = 8192;
+    private final static int BUFFER_SIZE = 8192;
 
-    public void assembleChunks(List<ChunkResult> results, String destination) throws IOException
+    public static void assembleChunks(List<ChunkResult> results, String destination) throws IOException
     {
         // validate all chunks were successful and that we have all chunks compiled
         validateChunks(results);
@@ -35,7 +35,7 @@ public class FileAssembler
         cleanupTempFiles(tempFiles);
     }
 
-    private void validateChunks(List<ChunkResult> results) throws IOException
+    private static void validateChunks(List<ChunkResult> results) throws IOException
     {
         if (results == null || results.isEmpty()) throw new IOException("Results list is null/contains no chunks");
         int largestIndex = 0;
@@ -57,7 +57,7 @@ public class FileAssembler
         }
     }
 
-    private List<ChunkResult> sortChunks(List<ChunkResult> results)
+    private static List<ChunkResult> sortChunks(List<ChunkResult> results)
     {
         List<ChunkResult> sorted = new ArrayList<>();
         for (int i = 0; i < results.size(); i++)
@@ -71,7 +71,7 @@ public class FileAssembler
         return sorted;
     }
 
-    private void mergeFiles(List<String> tempFiles, String output) throws IOException
+    private static void mergeFiles(List<String> tempFiles, String output) throws IOException
     {
         // open destination file, if it already exists its contents will be overwritten
         try (FileOutputStream outputStream = new FileOutputStream(output)) 
@@ -96,7 +96,7 @@ public class FileAssembler
         // output file closes here because we opened via try with resources block
     }
 
-    private void cleanupTempFiles(List<String> tempFiles) throws IOException
+    private static void cleanupTempFiles(List<String> tempFiles) throws IOException
     {
         for(String tempFile : tempFiles)
         {
