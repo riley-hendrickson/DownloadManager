@@ -21,7 +21,7 @@ class ProgressTrackerTest
     @BeforeEach
     void setUp()
     {
-        tracker = new ProgressTracker(TOTAL_SIZE);
+        tracker = new ProgressTracker();
     }
 
     // ============================================================
@@ -344,7 +344,7 @@ class ProgressTrackerTest
     {
         // Simulate a 4-chunk download of 10MB file
         long fileSize = 10 * 1024 * 1024L; // 10MB
-        ProgressTracker downloadTracker = new ProgressTracker(fileSize);
+        ProgressTracker downloadTracker = new ProgressTracker();
 
         // Chunk 0: 2.5MB
         downloadTracker.updateProgress(0, 2621440);
@@ -366,7 +366,7 @@ class ProgressTrackerTest
         ExecutorService executor = Executors.newFixedThreadPool(4);
         
         long fileSize = 1000000L;
-        ProgressTracker downloadTracker = new ProgressTracker(fileSize);
+        ProgressTracker downloadTracker = new ProgressTracker();
 
         // Chunk 0: fast download (500 updates of 500 bytes)
         executor.submit(() -> {
@@ -444,7 +444,7 @@ class ProgressTrackerTest
     void testPartialDownloadProgress()
     {
         long fileSize = 1000000L;
-        ProgressTracker downloadTracker = new ProgressTracker(fileSize);
+        ProgressTracker downloadTracker = new ProgressTracker();
 
         // Simulate partial downloads
         downloadTracker.updateProgress(0, 100000); // 10%
