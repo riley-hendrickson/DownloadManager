@@ -8,12 +8,10 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ProgressTracker
 {
     private final ConcurrentHashMap<Integer, AtomicLong> chunkProgress;
-    private long totalSize;
     
-    public ProgressTracker(long totalSize)
+    public ProgressTracker()
     {
         this.chunkProgress = new ConcurrentHashMap<>();
-        this.totalSize = totalSize;
     }
 
     public void updateProgress(Integer chunkIndex, long bytes)
