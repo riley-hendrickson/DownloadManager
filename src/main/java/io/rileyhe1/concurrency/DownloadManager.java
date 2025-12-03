@@ -52,22 +52,35 @@ public class DownloadManager
 
     public void pauseDownload(String downloadId)
     {
-        
+        // input validation
+        if(downloadId == null || downloadId.trim().isEmpty()) throw new IllegalArgumentException("download id cannot be null/empty");
+        Download download = activeDownloads.get(downloadId);
+        if(download == null) throw new IllegalArgumentException("Invalid download id, download is not present in active downloads map");
+        download.pause();
     }
 
     public void resumeDownload(String downloadId)
     {
-
+        // input validation
+        if(downloadId == null || downloadId.trim().isEmpty()) throw new IllegalArgumentException("download id cannot be null/empty");
+        Download download = activeDownloads.get(downloadId);
+        if(download == null) throw new IllegalArgumentException("Invalid download id, download is not present in active downloads map");
+        download.resume();
     }
 
     public void cancelDownload(String downloadId)
     {
-
+        // input validation
+        if(downloadId == null || downloadId.trim().isEmpty()) throw new IllegalArgumentException("download id cannot be null/empty");
+        Download download = activeDownloads.get(downloadId);
+        if(download == null) throw new IllegalArgumentException("Invalid download id, download is not present in active downloads map");
+        download.cancel();
+        activeDownloads.remove(downloadId);
     }
 
     public Download getDownload(String downloadId)
     {
-        return null;
+        return activeDownloads.get(downloadId);
     }
 
     public void shutdown()
