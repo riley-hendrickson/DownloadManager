@@ -113,7 +113,7 @@ class DownloadTest
     @Test
     void testConstructorEmptyURL()
     {
-        ProgressTracker tracker = new ProgressTracker(10000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -124,7 +124,7 @@ class DownloadTest
     @Test
     void testConstructorNullDestination()
     {
-        ProgressTracker tracker = new ProgressTracker(10000);
+        ProgressTracker tracker = new ProgressTracker();
 
         assertThrows(IllegalArgumentException.class, () -> {
             new Download(TEST_URL, null, config, tracker, executor);
@@ -134,7 +134,7 @@ class DownloadTest
     @Test
     void testConstructorNullConfig()
     {
-        ProgressTracker tracker = new ProgressTracker(10000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -155,7 +155,7 @@ class DownloadTest
     @Test
     void testConstructorNullExecutor()
     {
-        ProgressTracker tracker = new ProgressTracker(10000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -166,7 +166,7 @@ class DownloadTest
     @Test
     void testConstructorInvalidURL()
     {
-        ProgressTracker tracker = new ProgressTracker(10000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(DownloadException.class, () -> {
@@ -178,7 +178,7 @@ class DownloadTest
     @Test
     void testConstructorSetsUniqueIds() throws DownloadException
     {
-        ProgressTracker tracker = new ProgressTracker(10000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination1 = Paths.get(tempDir, "test1.pdf").toString();
         String destination2 = Paths.get(tempDir, "test2.pdf").toString();
 
@@ -197,7 +197,7 @@ class DownloadTest
     @Timeout(30)
     void testStartAndCompleteDownload() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "dummy.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -219,7 +219,7 @@ class DownloadTest
     @Test
     void testStartTwiceThrowsException() throws DownloadException
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -234,7 +234,7 @@ class DownloadTest
     @Timeout(30)
     void testProgressTracking() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -263,7 +263,7 @@ class DownloadTest
     @Test
     void testPauseBeforeStartThrowsException() throws DownloadException
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -276,7 +276,7 @@ class DownloadTest
     @Test
     void testResumeBeforeStartThrowsException() throws DownloadException
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -290,7 +290,7 @@ class DownloadTest
     @Timeout(30)
     void testPauseAndResume() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -324,7 +324,7 @@ class DownloadTest
     @Test
     void testResumeWithoutPauseThrowsException() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -340,7 +340,7 @@ class DownloadTest
     @Test
     void testPauseWhenAlreadyPausedThrowsException() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -360,7 +360,7 @@ class DownloadTest
     @Timeout(30)
     void testMultiplePauseResumeCycles() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -388,7 +388,7 @@ class DownloadTest
     @Test
     void testCancelBeforeStartThrowsException() throws DownloadException
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -402,7 +402,7 @@ class DownloadTest
     @Timeout(30)
     void testCancelDuringDownload() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -424,7 +424,7 @@ class DownloadTest
     @Timeout(30)
     void testCancelWhilePaused() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -446,7 +446,7 @@ class DownloadTest
     @Timeout(30)
     void testCancelAfterCompletion() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -465,7 +465,7 @@ class DownloadTest
     @Test
     void testMultipleCancelCalls() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -487,7 +487,7 @@ class DownloadTest
     @Test
     void testStateTransitionPendingToDownloading() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -502,7 +502,7 @@ class DownloadTest
     @Test
     void testStateTransitionDownloadingToCompleted() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -518,7 +518,7 @@ class DownloadTest
     @Test
     void testStateTransitionDownloadingToPaused() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -536,7 +536,7 @@ class DownloadTest
     @Test
     void testStateTransitionPausedToDownloading() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -560,7 +560,7 @@ class DownloadTest
     @Timeout(30)
     void testAwaitCompletionThrowsOnFailure() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         // Use invalid URL to cause failure
@@ -578,7 +578,7 @@ class DownloadTest
     @Test
     void testGetErrorReturnsNullOnSuccess() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, config, tracker, executor);
@@ -605,7 +605,7 @@ class DownloadTest
             .minSizeForChunking(20 * 1024) // 20KB
             .build();
 
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "small.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, singleChunkConfig, 
@@ -630,7 +630,7 @@ class DownloadTest
             .minSizeForChunking(1024)
             .build();
 
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "multi.pdf").toString();
 
         Download download = new Download(TEST_URL, destination, multiChunkConfig, 
@@ -655,7 +655,7 @@ class DownloadTest
     @Timeout(30)
     void testConcurrentPauseAndResume() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(1000000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "concurrent.mp4").toString();
 
         Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
@@ -721,7 +721,7 @@ class DownloadTest
     @Timeout(45)
     void testCompleteDownloadLifecycle() throws Exception
     {
-        ProgressTracker tracker = new ProgressTracker(100000);
+        ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "lifecycle.pdf").toString();
 
         // Create
