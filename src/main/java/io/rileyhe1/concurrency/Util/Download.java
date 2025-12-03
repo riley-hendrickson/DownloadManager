@@ -187,7 +187,7 @@ public class Download
         {
             throw new IllegalStateException("Cannot pause: Download has not been started yet");
         }
-        if(state != DownloadState.DOWNLOADING) throw new IllegalStateException("Cannot pause when the download is not downloading");
+        if(state != DownloadState.DOWNLOADING) throw new IllegalStateException("Cannot pause unless the download is in downloading state, current state: " + state);
         state = DownloadState.PAUSED;
 
         for(ChunkDownloader chunk : chunks)
