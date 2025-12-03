@@ -266,7 +266,6 @@ class ChunkDownloaderTest
     }
 
     @Test
-    @Disabled // enable when progress tracker is implemented
     void testWithProgressTracker()
     {
         // Create a simple progress tracker for testing
