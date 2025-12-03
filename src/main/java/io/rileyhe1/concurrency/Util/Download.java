@@ -272,4 +272,8 @@ public class Download
     {
         return this.totalSize;
     }
+    public String getDestination()
+    {
+        return this.destination;
+    }
 }
