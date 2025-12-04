@@ -175,13 +175,7 @@ public class DownloadManager
             }
             
             // Create Download (will be in PENDING state initially)
-            Download download = new Download(
-                snapshot.getUrl(),
-                snapshot.getDestination(),
-                config,
-                tracker,
-                executorService
-            );
+            Download download = new Download(snapshot, config, tracker, executorService);
             
             // Add to active downloads
             activeDownloads.put(download.getId(), download);
