@@ -35,6 +35,8 @@ public class Download
     private final ExecutorService executorService;
     private final ProgressTracker progressTracker;
 
+    private Map<Integer, Long> savedChunkProgress;
+
     private Exception error;
 
     public Download(String url, String destination, DownloadConfig config, ProgressTracker progressTracker, ExecutorService executorService) throws DownloadException
@@ -59,6 +61,7 @@ public class Download
         this.chunks = new ArrayList<>();
         this.futureResults = new ArrayList<>();
         this.results = new ArrayList<>();
+        this.completionLatch = new CountDownLatch(1);
 
         // attempt an HTTP HEAD request to find the size of the download and to ensure it supports range requests
         HttpURLConnection connection = null;
@@ -93,17 +96,49 @@ public class Download
         {
             throw new IOException("Server does not support range requests, cannot download in chunks.");
         }
+        }
+        catch(IOException e)
+        {
+            throw new DownloadException("Failed to retrieve file metadata from " + url, e, id, url);
+        }
+        finally
+        {
+            if(connection != null) connection.disconnect();
+        }
     }
-    catch(IOException e)
-    {
-        throw new DownloadException("Failed to retrieve file metadata from " + url, e, id, url);
-    }
-    finally
-    {
-        if(connection != null) connection.disconnect();
-    }
-}
 
+    // constructor for loading from snapshot
+    public Download(DownloadSnapshot snapshot, DownloadConfig config, 
+                ProgressTracker progressTracker, ExecutorService executorService) throws DownloadException
+    {
+        // Basic validation
+        if(snapshot == null) 
+            throw new IllegalArgumentException("Snapshot cannot be null!");
+        if(config == null) 
+            throw new IllegalArgumentException("Config cannot be null!");
+        if(progressTracker == null) 
+            throw new IllegalArgumentException("Progress Tracker cannot be null!");
+        if(executorService == null) 
+            throw new IllegalArgumentException("Executor Service cannot be null!");
+        
+        // Restore from snapshot
+        this.id = snapshot.getId(); 
+        this.url = snapshot.getUrl();
+        this.destination = snapshot.getDestination();
+        this.totalSize = snapshot.getTotalSize();
+        this.savedChunkProgress = snapshot.getChunkProgress();
+        this.config = config;
+        this.progressTracker = progressTracker;
+        this.executorService = executorService;
+        this.state = DownloadState.PENDING;
+
+        // Initialize other instance fields:
+        this.chunks = new ArrayList<>();
+        this.futureResults = new ArrayList<>();
+        this.results = new ArrayList<>();
+        this.completionLatch = new CountDownLatch(1);
+}
+    // starts downloading a new download
     public synchronized void start()
     {
         if(state != DownloadState.PENDING) throw new IllegalStateException("Cannot start download: Expected Pending, Was: " + state);
@@ -118,14 +153,12 @@ public class Download
             this.numChunks = (int) Math.ceil((double) totalSize / chunkSize);
         }
 
-        this.completionLatch = new CountDownLatch(1);
-
         long startByte = 0, endByte;
         for(int i = 0; i < numChunks; i++)
         {   
             endByte = (i == numChunks - 1) ? totalSize - 1 : startByte + chunkSize - 1;
 
-            ChunkDownloader curChunk = new ChunkDownloader(url, startByte, endByte, i, config, progressTracker);
+            ChunkDownloader curChunk = new ChunkDownloader(url, startByte, endByte, 0, i, config, progressTracker);
             chunks.add(curChunk);
             futureResults.add(executorService.submit(curChunk));
 
@@ -133,6 +166,40 @@ public class Download
         }
         executorService.submit(this::handleChunkCompletion);
     }
+    // continues downloading a previously stopped and saved download from where it left off
+    public synchronized void startExisting()
+    {
+        if(state != DownloadState.PENDING) 
+            throw new IllegalStateException("Cannot start download: Expected Pending, Was: " + state);
+        
+        if(savedChunkProgress == null)
+        {
+            throw new IllegalStateException("Cannot call startExisting on a new download. Use start() instead.");
+        }
+        
+        this.state = DownloadState.DOWNLOADING;
+
+        long chunkSize = config.getChunkSize();
+        this.numChunks = savedChunkProgress.size();
+
+        long startByte = 0, endByte;
+        for(int i = 0; i < numChunks; i++)
+        {   
+            endByte = (i == numChunks - 1) ? totalSize - 1 : startByte + chunkSize - 1;
+
+            // Get saved progress for this chunk (default to 0 if not found)
+            long alreadyDownloaded = savedChunkProgress.getOrDefault(i, 0L);
+
+            ChunkDownloader curChunk = new ChunkDownloader(url, startByte, endByte, alreadyDownloaded, 
+                                                        i, config, progressTracker);
+            chunks.add(curChunk);
+            futureResults.add(executorService.submit(curChunk));
+
+            startByte += chunkSize;
+        }
+        executorService.submit(this::handleChunkCompletion);
+    }
+
     // helper method to ensure start() is non-blocking
     private void handleChunkCompletion()
     {
