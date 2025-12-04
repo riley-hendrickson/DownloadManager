@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -13,6 +15,7 @@ import java.util.concurrent.Future;
 import io.rileyhe1.concurrency.Data.ChunkResult;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
 import io.rileyhe1.concurrency.Data.DownloadException;
+import io.rileyhe1.concurrency.Data.DownloadSnapshot;
 import io.rileyhe1.concurrency.Data.DownloadState;
 
 public class Download
@@ -247,6 +250,24 @@ public class Download
         {
             throw new DownloadException("Download failed", error, id, url);
         }
+    }
+
+    public DownloadSnapshot createSnapshot()
+    {
+        Map<Integer, Long> progress = new HashMap<>();
+        for(int i = 0; i < chunks.size(); i++)
+        {
+            progress.put(i, chunks.get(i).getBytesDownloaded());
+        }
+        
+        return new DownloadSnapshot(
+            id,
+            url,
+            destination,
+            totalSize,
+            progress,
+            state.toString()
+        );
     }
 
     public double getProgress()
