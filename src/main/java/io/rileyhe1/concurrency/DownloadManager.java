@@ -84,7 +84,21 @@ public class DownloadManager
         if(downloadId == null || downloadId.trim().isEmpty()) throw new IllegalArgumentException("download id cannot be null/empty");
         Download download = activeDownloads.get(downloadId);
         if(download == null) throw new IllegalArgumentException("Invalid download id, download is not present in active downloads map");
-        download.resume();
+        
+        // Check if this is a loaded download that hasn't been started yet
+        if(download.getState() == DownloadState.PENDING)
+        {
+            download.startExisting();
+        }
+        // Use regular resume for paused downloads
+        else if(download.getState() == DownloadState.PAUSED)
+        {
+            download.resume();
+        }
+        else
+        {
+            throw new IllegalStateException("Cannot resume download in state: " + download.getState());
+        }
     }
 
     public void cancelDownload(String downloadId)
