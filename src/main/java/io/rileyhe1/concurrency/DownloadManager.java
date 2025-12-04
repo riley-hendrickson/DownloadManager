@@ -26,6 +26,7 @@ import io.rileyhe1.concurrency.Data.DownloadState;
 import io.rileyhe1.concurrency.Util.Download;
 import io.rileyhe1.concurrency.Util.ProgressTracker;
 
+@SuppressWarnings("unused")
 public class DownloadManager
 {
     private static final String DOWNLOADS_FILE = "downloads.json";

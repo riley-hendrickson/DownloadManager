@@ -76,7 +76,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -98,7 +99,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -108,7 +110,8 @@ class ChunkDownloaderTest
             TEST_URL,
             1024,
             2047,
-            1,
+            0, // alreadyDownloaded
+            1, // chunkIndex
             config,
             null
         );
@@ -132,7 +135,8 @@ class ChunkDownloaderTest
             "https://this-is-not-a-real-url-12345.com/file.bin",
             0,
             1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -152,7 +156,8 @@ class ChunkDownloaderTest
             TEST_URL,
             999999999,
             999999999 + 1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -168,32 +173,42 @@ class ChunkDownloaderTest
     {
         // Test null URL
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader(null, 0, 1023, 0, config, null);
+            new ChunkDownloader(null, 0, 1023, 0, 0, config, null);
         });
 
         // Test empty URL
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("", 0, 1023, 0, config, null);
+            new ChunkDownloader("", 0, 1023, 0, 0, config, null);
         });
 
         // Test negative start byte
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader(TEST_URL, -1, 1023, 0, config, null);
+            new ChunkDownloader(TEST_URL, -1, 1023, 0, 0, config, null);
         });
 
         // Test end byte less than start byte
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader(TEST_URL, 1000, 500, 0, config, null);
+            new ChunkDownloader(TEST_URL, 1000, 500, 0, 0, config, null);
         });
 
         // Test null config
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader(TEST_URL, 0, 1023, 0, null, null);
+            new ChunkDownloader(TEST_URL, 0, 1023, 0, 0, null, null);
         });
 
         // Test negative chunk index
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader(TEST_URL, 0, 1023, -1, config, null);
+            new ChunkDownloader(TEST_URL, 0, 1023, 0, -1, config, null);
+        });
+
+        // Test negative alreadyDownloaded
+        assertThrows(IllegalArgumentException.class, () -> {
+            new ChunkDownloader(TEST_URL, 0, 1023, -1, 0, config, null);
+        });
+
+        // Test alreadyDownloaded exceeds chunk size
+        assertThrows(IllegalArgumentException.class, () -> {
+            new ChunkDownloader(TEST_URL, 0, 1023, 2000, 0, config, null);
         });
     }
 
@@ -204,7 +219,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             511,  // 512 bytes
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -229,7 +245,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             1023,
-            5,  // Chunk index 5
+            0, // alreadyDownloaded
+            5, // chunkIndex
             config,
             null
         );
@@ -252,7 +269,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             99,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -273,7 +291,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             tracker
         );
@@ -283,7 +302,6 @@ class ChunkDownloaderTest
         assertTrue(result.isSuccessful());
         
         // Progress tracker should have been updated
-        // (Exact verification depends on your ProgressTracker implementation)
         assertTrue(tracker.getTotalProgress() > 0, "Progress should be tracked");
     }
 
@@ -291,7 +309,6 @@ class ChunkDownloaderTest
     void testRetryOnFailure()
     {
         // Use an unreliable URL to trigger retries
-        // This test may be flaky depending on network conditions
         DownloadConfig retryConfig = DownloadConfig.builder()
             .maxRetries(3)
             .retryDelayMS(500)
@@ -303,7 +320,8 @@ class ChunkDownloaderTest
             "https://httpstat.us/500",  // Returns 500 error
             0,
             1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             retryConfig,
             null
         );
@@ -313,9 +331,6 @@ class ChunkDownloaderTest
         // Should fail after retries
         assertFalse(result.isSuccessful());
         assertTrue(result.hasError());
-        
-        // Note: This test verifies retry logic exists, 
-        // but exact behavior depends on network conditions
     }
 
     @Test
@@ -326,7 +341,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             1023,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -360,11 +376,6 @@ class ChunkDownloaderTest
 
     /**
      * Helper method to wait for a condition to become true.
-     * Polls the condition every 50ms until it's true or timeout is reached.
-     * 
-     * @param condition The condition to check
-     * @param timeoutMs Maximum time to wait in milliseconds
-     * @return true if condition became true, false if timeout
      */
     private boolean waitForCondition(java.util.function.BooleanSupplier condition, long timeoutMs)
     {
@@ -377,7 +388,7 @@ class ChunkDownloaderTest
             }
             try
             {
-                Thread.sleep(5); // Check every 5ms
+                Thread.sleep(5);
             }
             catch (InterruptedException e)
             {
@@ -389,13 +400,7 @@ class ChunkDownloaderTest
     }
 
     /**
-     * Helper method to wait for bytes downloaded to stabilize (stop changing).
-     * Useful for verifying a download is truly paused.
-     * 
-     * @param downloader The chunk downloader to monitor
-     * @param stabilityMs How long bytes must remain unchanged (in ms)
-     * @param timeoutMs Maximum time to wait
-     * @return The stable byte count, or -1 if timeout
+     * Helper method to wait for bytes downloaded to stabilize.
      */
     private long waitForStableBytes(ChunkDownloader downloader, long stabilityMs, long timeoutMs)
     {
@@ -409,13 +414,11 @@ class ChunkDownloaderTest
             
             if (currentBytes != lastBytes)
             {
-                // Bytes changed, reset stability timer
                 lastBytes = currentBytes;
                 lastChangeTime = System.currentTimeMillis();
             }
             else if (System.currentTimeMillis() - lastChangeTime >= stabilityMs)
             {
-                // Bytes have been stable for required duration
                 return currentBytes;
             }
             
@@ -430,7 +433,7 @@ class ChunkDownloaderTest
             }
         }
         
-        return -1; // Timeout
+        return -1;
     }
 
     @Test
@@ -438,33 +441,29 @@ class ChunkDownloaderTest
     void testPauseStopsDownload() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            LARGE_TEST_URL,  // Use larger file
+            LARGE_TEST_URL,
             0,
-            80000,  // Download more bytes to ensure it takes time
-            0,
+            80000,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
 
         Future<ChunkResult> future = executor.submit(downloader);
 
-        // Wait for some bytes to be downloaded (up to 5 seconds)
         assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > 0, 5000),
             "Should start downloading within 5 seconds");
 
-        // Pause the download
         downloader.pause();
         
-        // Wait for bytes to stabilize (paused for 300ms)
         long bytesWhenPaused = waitForStableBytes(downloader, 300, 2000);
         assertTrue(bytesWhenPaused > 0, "Should have downloaded some bytes before pause");
         
-        // Verify it stays paused
         Thread.sleep(200);
         assertEquals(bytesWhenPaused, downloader.getBytesDownloaded(), 
             "Bytes should not increase while paused");
 
-        // Resume and wait for completion to clean up properly
         downloader.resume();
         future.get();
     }
@@ -474,33 +473,29 @@ class ChunkDownloaderTest
     void testResumeAfterPause() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            LARGE_TEST_URL,  // Use larger file
+            LARGE_TEST_URL,
             0,
             80000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
 
         Future<ChunkResult> future = executor.submit(downloader);
 
-        // Wait for download to start
         assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > 0, 5000),
             "Download should start within 5 seconds");
 
-        // Pause
         downloader.pause();
         long bytesAtPause = waitForStableBytes(downloader, 300, 2000);
         assertTrue(bytesAtPause > 0, "Should have bytes when paused");
 
-        // Resume
         downloader.resume();
 
-        // Wait for more bytes to be downloaded
         assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > bytesAtPause, 3000),
             "Download should continue after resume. Paused at: " + bytesAtPause);
         
-        // Wait for completion to clean up properly
         future.get();
     }
 
@@ -512,7 +507,8 @@ class ChunkDownloaderTest
             LARGE_TEST_URL,
             0,
             50000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -541,16 +537,16 @@ class ChunkDownloaderTest
             LARGE_TEST_URL,
             0,
             50000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
 
         Future<ChunkResult> future = executor.submit(downloader);
 
-        // wait for the download to start
         assertTrue(waitForCondition(() -> downloader.getBytesDownloaded() > 0, 5000),
-        "Download should start within 5 seconds");
+            "Download should start within 5 seconds");
         downloader.pause();
         
         long bytesBeforeCancel = downloader.getBytesDownloaded();
@@ -573,7 +569,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             10000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -582,15 +579,12 @@ class ChunkDownloaderTest
 
         Future<ChunkResult> future = executor.submit(downloader);
 
-        // Wait a moment to verify it's paused
         Thread.sleep(100);
         assertEquals(0, downloader.getBytesDownloaded(), 
             "Should not download when paused from start");
 
-        // Resume and let it complete
         downloader.resume();
         
-        // Wait for completion
         ChunkResult result = future.get();
         assertTrue(result.isSuccessful(), "Should complete after resume");
         assertEquals(10001, result.getBytesDownloaded(), "Should download all bytes after resume");
@@ -600,12 +594,12 @@ class ChunkDownloaderTest
     @Timeout(30)
     void testResumeWithoutPause() throws InterruptedException, ExecutionException
     {
-        // Download 10001 bytes (0-10000 inclusive)
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
             0,
             10000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -628,7 +622,8 @@ class ChunkDownloaderTest
             TEST_URL,
             0,
             50000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -654,7 +649,8 @@ class ChunkDownloaderTest
             LARGE_TEST_URL,
             0,
             50000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -677,12 +673,12 @@ class ChunkDownloaderTest
     @Timeout(30)
     void testCompletedDownloadIgnoresPause() throws InterruptedException, ExecutionException
     {
-        // Download 101 bytes (0-100 inclusive)
         ChunkDownloader downloader = new ChunkDownloader(
             TEST_URL,
             0,
             100,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -703,10 +699,11 @@ class ChunkDownloaderTest
     void testConcurrentPauseResumeFromMultipleThreads() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            LARGE_TEST_URL,  // Use larger file
+            LARGE_TEST_URL,
             0,
             80000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -745,7 +742,6 @@ class ChunkDownloaderTest
         t1.join();
         t2.join();
 
-        // Ensure it's resumed and wait for completion
         downloader.resume();
         future.get();
     }
@@ -754,12 +750,12 @@ class ChunkDownloaderTest
     @Timeout(30)
     void testPauseDoesNotLoseData() throws InterruptedException, ExecutionException, IOException
     {
-        // Download 20001 bytes (0-20000 inclusive)
         ChunkDownloader downloader = new ChunkDownloader(
             LARGE_TEST_URL,
             0,
             20000,
-            0,
+            0, // alreadyDownloaded
+            0, // chunkIndex
             config,
             null
         );
@@ -784,34 +780,48 @@ class ChunkDownloaderTest
         assertTrue(Files.exists(tempFile), "Temp file should exist");
         assertEquals(20001, Files.size(tempFile), "File size should match bytes downloaded");
     }
+
+    @Test
+    @Timeout(30)
+    void testResumeWithPartialDownload() throws InterruptedException, ExecutionException
+    {
+        // Test downloading with alreadyDownloaded > 0
+        // This simulates resuming a partially completed chunk
+        ChunkDownloader downloader = new ChunkDownloader(
+            TEST_URL,
+            0,
+            2000,
+            1000, // Already downloaded 1000 bytes
+            0, // chunkIndex
+            config,
+            null
+        );
+
+        // Should have 1000 bytes already "downloaded"
+        assertEquals(1000, downloader.getBytesDownloaded(), 
+            "Should start with alreadyDownloaded bytes");
+
+        Future<ChunkResult> future = executor.submit(downloader);
+        ChunkResult result = future.get();
+
+        assertTrue(result.isSuccessful(), "Download should succeed");
+        // Should download remaining bytes: 2001 total - 1000 already = 1001 more
+        assertEquals(2001, result.getBytesDownloaded(), 
+            "Should download all remaining bytes");
+    }
 }
 
 /* ============================================================
-   ADDITIONAL NOTES FOR RUNNING TESTS
+   RUNNING TESTS
    ============================================================
 
-1. Add JUnit 5 to your pom.xml if not already present:
+Run all ChunkDownloader tests:
+   mvn test -Dtest=ChunkDownloaderTest
 
-<dependencies>
-    <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter</artifactId>
-        <version>5.10.0</version>
-        <scope>test</scope>
-    </dependency>
-</dependencies>
-
-2. Run tests with Maven:
-   mvn test
-
-3. Run specific test:
+Run specific test:
    mvn test -Dtest=ChunkDownloaderTest#testSuccessfulDownload
 
-4. Some tests depend on network connectivity and may be flaky.
-   The retry test especially may behave differently depending on
-   network conditions.
-
-5. Tests use @TempDir which automatically creates and cleans up
-   temporary directories for each test.
+Run all tests except slow ones:
+   mvn test -Dtest=ChunkDownloaderTest#test*
 
 ============================================================ */
