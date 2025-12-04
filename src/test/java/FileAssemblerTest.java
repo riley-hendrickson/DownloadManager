@@ -20,13 +20,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class FileAssemblerTest
 {
-    private FileAssembler assembler;
     private String tempDir;
 
     @BeforeEach
     void setUp(@TempDir Path tempDirectory)
     {
-        assembler = new FileAssembler();
         tempDir = tempDirectory.toString();
     }
 
@@ -68,7 +66,7 @@ class FileAssemblerTest
 
         // Assemble
         String destination = Paths.get(tempDir, "output.txt").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         // Verify output file exists and has correct content
         assertTrue(Files.exists(Paths.get(destination)), "Output file should exist");
@@ -100,7 +98,7 @@ class FileAssemblerTest
         results.add(ChunkResult.success(chunk1.toString(), 6, 1)); // chunk 1 third
 
         String destination = Paths.get(tempDir, "output.txt").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         // Should still be assembled in correct order
         String content = Files.readString(Paths.get(destination));
@@ -118,7 +116,7 @@ class FileAssemblerTest
         results.add(ChunkResult.success(chunk0.toString(), 9, 0));
 
         String destination = Paths.get(tempDir, "output.txt").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         String content = Files.readString(Paths.get(destination));
         assertEquals("OnlyChunk", content);
@@ -148,7 +146,7 @@ class FileAssemblerTest
         results.add(ChunkResult.success(chunk1.toString(), 10000, 1));
 
         String destination = Paths.get(tempDir, "output.bin").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         // Verify file size
         assertEquals(20000, Files.size(Paths.get(destination)));
@@ -170,7 +168,7 @@ class FileAssemblerTest
 
         // Should throw exception for empty list
         assertThrows(IOException.class, () -> {
-            assembler.assembleChunks(results, destination);
+            FileAssembler.assembleChunks(results, destination);
         });
     }
 
@@ -181,7 +179,7 @@ class FileAssemblerTest
 
         // Should throw exception for null list
         assertThrows(IOException.class, () -> {
-            assembler.assembleChunks(null, destination);
+            FileAssembler.assembleChunks(null, destination);
         });
     }
 
@@ -200,7 +198,7 @@ class FileAssemblerTest
 
         // Should throw exception and not create output file
         assertThrows(IOException.class, () -> {
-            assembler.assembleChunks(results, destination);
+            FileAssembler.assembleChunks(results, destination);
         });
 
         // Output file should not be created
@@ -224,7 +222,7 @@ class FileAssemblerTest
 
         // Should throw exception for missing chunk
         assertThrows(IOException.class, () -> {
-            assembler.assembleChunks(results, destination);
+            FileAssembler.assembleChunks(results, destination);
         });
     }
 
@@ -239,7 +237,7 @@ class FileAssemblerTest
 
         // Should throw exception when trying to read non-existent chunk
         assertThrows(IOException.class, () -> {
-            assembler.assembleChunks(results, destination);
+            FileAssembler.assembleChunks(results, destination);
         });
     }
 
@@ -258,7 +256,7 @@ class FileAssemblerTest
         results.add(ChunkResult.success(chunk0.toString(), 10, 0));
 
         // Assemble should overwrite
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         String content = Files.readString(Paths.get(destination));
         assertEquals("NewContent", content, "Should overwrite existing file");
@@ -278,7 +276,7 @@ class FileAssemblerTest
         results.add(ChunkResult.success(chunk1.toString(), 4, 1));
 
         String destination = Paths.get(tempDir, "output.txt").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         String content = Files.readString(Paths.get(destination));
         assertEquals("Data", content);
@@ -299,7 +297,7 @@ class FileAssemblerTest
         }
 
         String destination = Paths.get(tempDir, "output.txt").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         String content = Files.readString(Paths.get(destination));
         assertEquals("Chunk0Chunk1Chunk2Chunk3Chunk4Chunk5Chunk6Chunk7Chunk8Chunk9", content);
@@ -328,7 +326,7 @@ class FileAssemblerTest
         results.add(ChunkResult.success(chunk1.toString(), 5, 1));
 
         String destination = Paths.get(tempDir, "output.bin").toString();
-        assembler.assembleChunks(results, destination);
+        FileAssembler.assembleChunks(results, destination);
 
         byte[] result = Files.readAllBytes(Paths.get(destination));
         assertEquals(10, result.length);
