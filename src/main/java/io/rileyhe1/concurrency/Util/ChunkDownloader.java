@@ -56,6 +56,11 @@ public class ChunkDownloader implements Callable<ChunkResult>
         {
             throw new IllegalArgumentException("Already downloaded exceeds chunk size: " + alreadyDownloaded);
         }
+        if(startByte + alreadyDownloaded > endByte)
+        {
+            throw new IllegalArgumentException("Start byte + already downloaded exceeds end byte. Start: " 
+            + startByte + " , Already Downloaded: " + alreadyDownloaded + "End: " + endByte);
+        }
         if(config == null)
         {
             throw new IllegalArgumentException("Config cannot be null");
