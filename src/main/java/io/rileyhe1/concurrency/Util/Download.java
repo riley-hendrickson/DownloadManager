@@ -3,6 +3,7 @@ package io.rileyhe1.concurrency.Util;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -238,7 +239,7 @@ public class Download
             if(state != DownloadState.CANCELLED)
             {
                 state = DownloadState.FAILED;
-                error = e;
+                error = new DownloadException("Download Failed: " + e.getMessage(), e, id, url);
             }
         }
         finally
@@ -363,5 +364,24 @@ public class Download
     public String getDestination()
     {
         return this.destination;
+    }
+    public String getUrl()
+    {
+        return url;
+    }
+
+    public long getDownloadedBytes()
+    {
+        return (long) (totalSize * (getProgress() / 100.0));
+    }
+
+    public long getRemainingBytes()
+    {
+        return totalSize - getDownloadedBytes();
+    }
+
+    public String getFileName()
+    {
+        return Paths.get(destination).getFileName().toString();
     }
 }

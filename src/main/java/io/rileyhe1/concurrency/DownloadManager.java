@@ -4,6 +4,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -187,6 +188,11 @@ public class DownloadManager
         return activeDownloads.get(downloadId);
     }
 
+    public List<Download> getAllDownloads()
+    {
+        return new ArrayList<>(activeDownloads.values());
+    }
+
     public void shutdown()
     {
         // Pause all active downloads
@@ -258,8 +264,16 @@ public class DownloadManager
         // Lastly we clear the map
         activeDownloads.clear();
     }
-    public static void main(String[] args)
+    // convinience method for GUI
+    private void validateURL(String url) throws IllegalArgumentException
     {
-        System.out.println("Hello world!");
+        try 
+        {
+            URI.create(url).toURL();
+        }
+        catch(Exception e)
+        {
+            throw new IllegalArgumentException("Invalid URL format: " + url, e);
+        }
     }
 }
