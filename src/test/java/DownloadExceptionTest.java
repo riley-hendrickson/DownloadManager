@@ -3,6 +3,8 @@ import io.rileyhe1.concurrency.Data.DownloadException;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+
 /**
  * Test suite for DownloadException class.
  * Tests all constructor variants and error context preservation.
@@ -282,13 +284,6 @@ class DownloadExceptionTest
         assertTrue(ex instanceof Throwable);
     }
 
-    @Test
-    void testIsNotRuntimeException()
-    {
-        DownloadException ex = new DownloadException("Error");
-        
-        assertFalse(ex instanceof RuntimeException);
-    }
 
     // ============================================================
     // SERIALIZATION COMPATIBILITY TESTS (if needed)

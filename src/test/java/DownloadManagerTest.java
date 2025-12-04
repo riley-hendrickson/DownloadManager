@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.Tag;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -730,7 +729,8 @@ class DownloadManagerTest
     @Test
     void testOperationsAfterShutdown() throws Exception
     {
-        String destination = Paths.get(tempDir, "aftershutdown.pdf").toString();
+        // String destination = 
+        Paths.get(tempDir, "aftershutdown.pdf").toString();
         
         manager.shutdown();
         
