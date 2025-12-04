@@ -28,8 +28,8 @@ public class DownloadException extends Exception
     public DownloadException(String message, String downloadId, String url)
     {
         super(message);
-        this.downloadId = null;
-        this.url = null;
+        this.downloadId = downloadId;
+        this.url = url;
     }
 
     // used to create a DownloadException with full context + underlying cause
