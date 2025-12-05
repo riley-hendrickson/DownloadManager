@@ -6,6 +6,7 @@ import io.rileyhe1.concurrency.Util.Download;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -584,26 +585,6 @@ class DownloadManagerTest
     }
 
     @Test
-    @Timeout(30)
-    @Tag("network")
-    void testShutdownCancelsAllDownloads() throws Exception
-    {
-        String dest1 = Paths.get(tempDir, "file1.mp4").toString();
-        String dest2 = Paths.get(tempDir, "file2.mp4").toString();
-        
-        Download download1 = manager.startDownload(LARGE_TEST_URL, dest1);
-        Download download2 = manager.startDownload(LARGE_TEST_URL, dest2);
-        
-        Thread.sleep(200);
-        
-        manager.shutdown();
-        
-        // Both downloads should be cancelled after shutdown
-        assertEquals(DownloadState.CANCELLED, download1.getState());
-        assertEquals(DownloadState.CANCELLED, download2.getState());
-    }
-
-    @Test
     void testShutdownClearsActiveDownloads() throws Exception
     {
         String destination = Paths.get(tempDir, "clear.pdf").toString();
@@ -674,6 +655,7 @@ class DownloadManagerTest
     }
 
     @Test
+    // @Disabled
     @Timeout(60)
     @Tag("network")
     @Tag("integration")

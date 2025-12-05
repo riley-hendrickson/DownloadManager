@@ -224,43 +224,39 @@ public class DownloadManager
             // Continue with shutdown even if save fails
         }
         
-        // Cancel all downloads for cleanup
+        // Cancel all leftover downloads for cleanup (Completed or cancelled downloads)
         for(Download download : activeDownloads.values())
         {
-            try
+            DownloadState state = download.getState();
+            if(state == DownloadState.COMPLETED ||
+               state == DownloadState.CANCELLED)
             {
-                download.cancel();
-            }
-            catch(IllegalStateException e)
-            {
-                // Illegal state exception only throws if already completed/cancelled - so we'll just ignore it
+                try
+                {
+                    download.cancel();
+                }
+                catch(IllegalStateException e)
+                {
+                    // Illegal state exception only throws if already completed/cancelled - so we'll just ignore it
+                }
             }
         }
         
         // Shutdown executor
-        executorService.shutdown();
+        executorService.shutdownNow();
         
         try
         {
-            // Wait for termination with timeout (60 seconds)
-            if(!executorService.awaitTermination(60, TimeUnit.SECONDS))
-            {
-                // Timeout ran out so we'll force shutdown
-                executorService.shutdownNow();
-                
-                // Wait again after forced shutdown
-                if(!executorService.awaitTermination(60, TimeUnit.SECONDS))
-                {
-                    System.err.println("ExecutorService did not terminate");
-                }
+            // Wait for termination with timeout (10 seconds)
+            if(!executorService.awaitTermination(10, TimeUnit.SECONDS))
+            {   
+                System.err.println("ExecutorService did not terminate within 10 seconds");
             }
         }
         catch(InterruptedException e)
         {
             // Current thread was interrupted during shutdown
             Thread.currentThread().interrupt();
-            // Force shutdown
-            executorService.shutdownNow();
         }
         
         // Lastly we clear the map
