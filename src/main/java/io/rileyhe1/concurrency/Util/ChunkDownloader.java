@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.rileyhe1.concurrency.Data.ChunkResult;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
 
-// @SuppressWarnings("unused")
 public class ChunkDownloader implements Callable<ChunkResult>
 {
     // Configuration
@@ -32,10 +31,14 @@ public class ChunkDownloader implements Callable<ChunkResult>
 
     
 
-    public ChunkDownloader(String url, long startByte, long endByte, long alreadyDownloaded, int chunkIndex,
+    public ChunkDownloader(String downloadId, String url, long startByte, long endByte, long alreadyDownloaded, int chunkIndex,
             DownloadConfig config, ProgressTracker progressTracker)
     {
         // validate parameters:
+        if(downloadId == null || downloadId.trim().isEmpty())
+        {
+            throw new IllegalArgumentException("Download id cannot be null or empty");
+        }
         if(url == null || url.trim().isEmpty())
         {
             throw new IllegalArgumentException("URL cannot be null or empty");
@@ -70,12 +73,28 @@ public class ChunkDownloader implements Callable<ChunkResult>
             throw new IllegalArgumentException("Chunk index cannot be less than zero");
         }
 
+        // Create download-specific temp directory
+        String downloadTempDir = config.getTempDirectory() + "/" + downloadId;
+        java.nio.file.Path tempDirPath = java.nio.file.Paths.get(downloadTempDir);
+        
+        try
+        {
+            if(!java.nio.file.Files.exists(tempDirPath))
+            {
+                java.nio.file.Files.createDirectories(tempDirPath);
+            }
+        }
+        catch(IOException e)
+        {
+            throw new IllegalArgumentException("Failed to create temp directory: " + downloadTempDir, e);
+        }
+
         // assign fields
         this.url = url;
         this.startByte = startByte + alreadyDownloaded;
         this.endByte = endByte;
         this.chunkIndex = chunkIndex;
-        this.tempFilePath = config.getTempDirectory() + "/chunk" + this.chunkIndex + ".bin";
+        this.tempFilePath = downloadTempDir + "/chunk" + this.chunkIndex + ".bin";
         this.config = config;
         this.progressTracker = progressTracker;
         this.bytesDownloaded = new AtomicLong(alreadyDownloaded);
