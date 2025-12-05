@@ -106,7 +106,7 @@ class DownloadManagerTest
         // Start a download and pause it
         String destination = Paths.get(tempDir, "test1.pdf").toString();
         Download download = manager.startDownload(TEST_URL, destination);
-        Thread.sleep(100);
+        Thread.sleep(10);
         manager.pauseDownload(download.getId());
         
         // Shutdown to save state
