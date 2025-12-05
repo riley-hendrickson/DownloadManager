@@ -165,7 +165,7 @@ public class Download
         {   
             endByte = (i == numChunks - 1) ? totalSize - 1 : startByte + chunkSize - 1;
 
-            ChunkDownloader curChunk = new ChunkDownloader(url, startByte, endByte, 0, i, config, progressTracker);
+            ChunkDownloader curChunk = new ChunkDownloader(id, url, startByte, endByte, 0, i, config, progressTracker);
             chunks.add(curChunk);
             futureResults.add(executorService.submit(curChunk));
 
@@ -194,7 +194,7 @@ public class Download
             // Get saved progress for this chunk (default to 0 if not found)
             long alreadyDownloaded = savedChunkProgress.getOrDefault(i, 0L);
 
-            ChunkDownloader curChunk = new ChunkDownloader(url, startByte, endByte, alreadyDownloaded, 
+            ChunkDownloader curChunk = new ChunkDownloader(id, url, startByte, endByte, alreadyDownloaded, 
                                                         i, config, progressTracker);
             chunks.add(curChunk);
             futureResults.add(executorService.submit(curChunk));
