@@ -297,6 +297,19 @@ public class Download
         {
             chunk.cancel();
         }
+        // collect all the temp file paths and attempt to delete them
+        List<String> tempFilePaths = new ArrayList<>();
+        for(int i = 0; i < results.size(); i++)
+        {
+            tempFilePaths.add(results.get(i).getTempFilePath());
+        }
+        try
+        {
+            FileAssembler.cleanupTempFiles(tempFilePaths);
+        } catch (IOException e)
+        {
+            // best effort to delete temp files, if exception occurs we'll ignore it
+        }
 
         // cancel any pending futures:
         for(Future<ChunkResult> future : futureResults)
