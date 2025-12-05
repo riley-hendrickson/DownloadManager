@@ -13,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import io.rileyhe1.concurrency.Data.ChunkResult;
@@ -41,7 +42,7 @@ public class Download
     private Map<Integer, Long> savedChunkProgress;
 
     private Exception error;
-
+    // TODO: REMOVE EXECUTOR SERVICE FROM CONSTRUCTOR AND ADJUST USAGE ACCORDINGLY
     public Download(String url, String destination, DownloadConfig config, ProgressTracker progressTracker, ExecutorService executorService) throws DownloadException
     {
         // validate arguments
@@ -57,7 +58,6 @@ public class Download
         this.destination = destination;
         this.config = config;
         this.progressTracker = progressTracker;
-        this.executorService = executorService;
         this.state = DownloadState.PENDING;
 
         // initialize other instance fields:
@@ -108,8 +108,19 @@ public class Download
         {
             if(connection != null) connection.disconnect();
         }
-    }
 
+        // now that we've determined the file size, we'll compute the number of chunks
+        long chunkSize = config.getChunkSize();
+        if(totalSize < config.getMinSizeForChunking()) this.numChunks = 1;
+        else
+        {
+            // we want to round up on our division here to make sure we get the final chunk whose length < chunkSize (if it exists)
+            this.numChunks = (int) Math.ceil((double) totalSize / chunkSize);
+        }
+        // each download needs a thread for each chunk, as well as one more for monitoring chunk completion
+        this.executorService = Executors.newFixedThreadPool(numChunks + 1);
+    }
+    // need to remove executor service from constructor and adjust usage accordingly
     // constructor for loading from snapshot
     public Download(DownloadSnapshot snapshot, DownloadConfig config, 
                 ProgressTracker progressTracker, ExecutorService executorService) throws DownloadException
@@ -130,9 +141,10 @@ public class Download
         this.destination = snapshot.getDestination();
         this.totalSize = snapshot.getTotalSize();
         this.savedChunkProgress = snapshot.getChunkProgress();
+        this.numChunks = savedChunkProgress.size();
         this.config = config;
         this.progressTracker = progressTracker;
-        this.executorService = executorService;
+        this.executorService = Executors.newFixedThreadPool(numChunks + 1);
         this.state = DownloadState.PENDING;
 
         // Initialize other instance fields:
@@ -148,15 +160,7 @@ public class Download
         
         this.state = DownloadState.DOWNLOADING;
 
-        long chunkSize = config.getChunkSize();
-        if(totalSize < config.getMinSizeForChunking()) this.numChunks = 1;
-        else
-        {
-            // we want to round up on our division here to make sure we get the final chunk whose length < chunkSize (if it exists)
-            this.numChunks = (int) Math.ceil((double) totalSize / chunkSize);
-        }
-
-        long startByte = 0, endByte;
+        long startByte = 0, endByte, chunkSize = config.getChunkSize();
         for(int i = 0; i < numChunks; i++)
         {   
             endByte = (i == numChunks - 1) ? totalSize - 1 : startByte + chunkSize - 1;
@@ -182,10 +186,7 @@ public class Download
         
         this.state = DownloadState.DOWNLOADING;
 
-        long chunkSize = config.getChunkSize();
-        this.numChunks = savedChunkProgress.size();
-
-        long startByte = 0, endByte;
+        long startByte = 0, endByte, chunkSize = config.getChunkSize();
         for(int i = 0; i < numChunks; i++)
         {   
             endByte = (i == numChunks - 1) ? totalSize - 1 : startByte + chunkSize - 1;
