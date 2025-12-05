@@ -3,6 +3,7 @@ package io.rileyhe1.concurrency.Util;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -297,25 +298,29 @@ public class Download
         {
             chunk.cancel();
         }
-        // collect all the temp file paths and attempt to delete them
-        List<String> tempFilePaths = new ArrayList<>();
-        for(int i = 0; i < results.size(); i++)
-        {
-            tempFilePaths.add(results.get(i).getTempFilePath());
-        }
-        try
-        {
-            FileAssembler.cleanupTempFiles(tempFilePaths);
-        } catch (IOException e)
-        {
-            // best effort to delete temp files, if exception occurs we'll ignore it
-        }
 
         // cancel any pending futures:
         for(Future<ChunkResult> future : futureResults)
         {
             future.cancel(true);
         }
+
+        // collect all the temp file paths and attempt to delete them
+        for(ChunkResult result : results)
+        {
+            if(result.getTempFilePath() != null)
+            {
+                try
+                {
+                    Files.deleteIfExists(Paths.get(result.getTempFilePath()));
+                }
+                catch(IOException e)
+                {
+                    // Log but don't fail - cleanup is best-effort
+                }
+            }
+        }
+
         // countdown the latch so awaitCompletion doesn't hang
         if(!completionLatchPulled)
         {
