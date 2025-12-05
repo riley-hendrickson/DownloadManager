@@ -186,6 +186,7 @@ public class DownloadManager
 
     public Download getDownload(String downloadId)
     {
+        if(downloadId == null) return null;
         return activeDownloads.get(downloadId);
     }
 
