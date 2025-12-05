@@ -88,7 +88,7 @@ public class DownloadConfig
 
     public static class Builder
     {
-        private int numberOfThreads = 4;
+        private int numberOfThreads = 16;
         private long chunkSize = 5 * 1024 * 1024; // 5 MB
         private int connectionTimeout = 30000; // 30 seconds
         private int readTimeout = 30000; // 30 seconds

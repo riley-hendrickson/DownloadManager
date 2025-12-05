@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -207,32 +208,57 @@ public class Download
     {
         try
         {
-            // Check if cancelled before processing
-            if(state == DownloadState.CANCELLED)
-            {
-                return;
-            }
             // collect all the results
             for(Future<ChunkResult> futureResult : futureResults)
             {
-                ChunkResult result = futureResult.get();
-
-                // verify results were successful and handle failures
-                if(!result.isSuccessful())
+                try
                 {
-                    throw new IOException("Chunk " + result.getChunkIndex() + " failed: " 
-                    + result.getErrorMessage());
+                    ChunkResult result = futureResult.get();
+
+                    // Check if cancelled during collection
+                    if(state == DownloadState.CANCELLED)
+                    {
+                        return;
+                    }
+
+                    // verify results were successful and handle failures
+                    if(!result.isSuccessful())
+                    {
+                        throw new IOException("Chunk " + result.getChunkIndex() + " failed: " 
+                        + result.getErrorMessage());
+                    }
+                    results.add(result);
                 }
-                results.add(result);
+                catch(CancellationException e)
+                {
+                    // This will trigger when the future calls cancel, which is expected when we try to cancel a download
+                    // in this case we just want to return to hit the finally block
+                    return;
+                }
+                catch(InterruptedException e)
+                {
+                    // This triggers if the thread is interrupted, so we want to restore interrupt status and return to hit the finally block
+                    Thread.currentThread().interrupt();
+                    return;
+                }
             }
-            // Double-check state before assembling (could have been cancelled during collection)
+
+            // one final check for cancellation before assembling the final file:
             if(state == DownloadState.CANCELLED)
             {
-                return;
+                return; // Exit to finally block
             }
+
             // assemble the final file
             FileAssembler.assembleChunks(results, destination);
-            state = DownloadState.COMPLETED;
+
+            synchronized(this)
+            {
+                if(state != DownloadState.CANCELLED)
+                {
+                    state = DownloadState.COMPLETED;
+                }
+            }
         }
         catch(Exception e)
         {
@@ -245,11 +271,14 @@ public class Download
         }
         finally
         {
-            if(!completionLatchPulled)
+            synchronized(this)
             {
-                completionLatchPulled = true;
-                completionLatch.countDown();
-            }  
+                if(!completionLatchPulled)
+                {
+                    completionLatchPulled = true;
+                    completionLatch.countDown();
+                } 
+            } 
         }
     }
 
@@ -320,13 +349,6 @@ public class Download
                 }
             }
         }
-
-        // countdown the latch so awaitCompletion doesn't hang
-        if(!completionLatchPulled)
-        {
-            completionLatchPulled = true;
-            completionLatch.countDown();
-        } 
     }
 
     public void awaitCompletion() throws InterruptedException, DownloadException

@@ -39,7 +39,7 @@ class DownloadManagerTest
         tempDir = tempDirectory.toString();
         
         config = DownloadConfig.builder()
-            .numberOfThreads(4)
+            .numberOfThreads(16)
             .chunkSizeMB(1)
             .timeoutsInSeconds(30)
             .maxRetries(3)
@@ -655,7 +655,7 @@ class DownloadManagerTest
     }
 
     @Test
-    // @Disabled
+    @Disabled
     @Timeout(60)
     @Tag("network")
     @Tag("integration")
@@ -683,6 +683,7 @@ class DownloadManagerTest
         assertEquals(DownloadState.COMPLETED, download1.getState());
         assertEquals(DownloadState.PAUSED, download2.getState());
         assertEquals(DownloadState.COMPLETED, download3.getState());
+        System.out.println("States of the downloads are as expected");
         
         // Resume and complete the paused one
         manager.resumeDownload(download2.getId());
