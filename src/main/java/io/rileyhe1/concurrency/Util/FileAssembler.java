@@ -96,7 +96,7 @@ public class FileAssembler
         // output file closes here because we opened via try with resources block
     }
 
-    private static void cleanupTempFiles(List<String> tempFiles) throws IOException
+    public static void cleanupTempFiles(List<String> tempFiles) throws IOException
     {
         for(String tempFile : tempFiles)
         {
