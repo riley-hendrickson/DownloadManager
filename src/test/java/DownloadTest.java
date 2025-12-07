@@ -28,7 +28,6 @@ class DownloadTest
     private static final String TEST_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
     private static final String LARGE_TEST_URL = "https://archive.org/download/Rick_Astley_Never_Gonna_Give_You_Up/Rick_Astley_Never_Gonna_Give_You_Up.mp4";
     
-    private ExecutorService executor;
     private DownloadConfig config;
     private String tempDir;
 
@@ -36,7 +35,6 @@ class DownloadTest
     void setUp(@TempDir Path tempDirectory)
     {
         tempDir = tempDirectory.toString();
-        executor = Executors.newFixedThreadPool(4);
         
         config = DownloadConfig.builder()
             .numberOfThreads(4)
@@ -53,19 +51,6 @@ class DownloadTest
     @AfterEach
     void tearDown() throws IOException
     {
-        if(executor != null)
-        {
-            executor.shutdownNow();
-            try
-            {
-                executor.awaitTermination(5, TimeUnit.SECONDS);
-            }
-            catch(InterruptedException e)
-            {
-                Thread.currentThread().interrupt();
-            }
-        }
-
         // Clean up test files
         Files.walk(Paths.get(tempDir))
             .filter(Files::isRegularFile)
@@ -91,7 +76,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
 
         assertNotNull(download.getId(), "Download should have an ID");
         assertEquals(DownloadState.PENDING, download.getState(), "Initial state should be PENDING");
@@ -106,7 +91,7 @@ class DownloadTest
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new Download(null, destination, config, tracker, executor);
+            new Download(null, destination, config, tracker);
         });
     }
 
@@ -117,7 +102,7 @@ class DownloadTest
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new Download("", destination, config, tracker, executor);
+            new Download("", destination, config, tracker);
         });
     }
 
@@ -127,7 +112,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new Download(TEST_URL, null, config, tracker, executor);
+            new Download(TEST_URL, null, config, tracker);
         });
     }
 
@@ -138,7 +123,7 @@ class DownloadTest
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new Download(TEST_URL, destination, null, tracker, executor);
+            new Download(TEST_URL, destination, null, tracker);
         });
     }
 
@@ -148,18 +133,7 @@ class DownloadTest
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
         assertThrows(IllegalArgumentException.class, () -> {
-            new Download(TEST_URL, destination, config, null, executor);
-        });
-    }
-
-    @Test
-    void testConstructorNullExecutor()
-    {
-        ProgressTracker tracker = new ProgressTracker();
-        String destination = Paths.get(tempDir, "test.pdf").toString();
-
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Download(TEST_URL, destination, config, tracker, null);
+            new Download(TEST_URL, destination, config, null);
         });
     }
 
@@ -171,7 +145,7 @@ class DownloadTest
 
         assertThrows(DownloadException.class, () -> {
             new Download("https://this-is-not-a-real-url-12345.com/file.bin", 
-                        destination, config, tracker, executor);
+                        destination, config, tracker);
         });
     }
 
@@ -182,11 +156,25 @@ class DownloadTest
         String destination1 = Paths.get(tempDir, "test1.pdf").toString();
         String destination2 = Paths.get(tempDir, "test2.pdf").toString();
 
-        Download download1 = new Download(TEST_URL, destination1, config, tracker, executor);
-        Download download2 = new Download(TEST_URL, destination2, config, tracker, executor);
+        Download download1 = new Download(TEST_URL, destination1, config, tracker);
+        Download download2 = new Download(TEST_URL, destination2, config, tracker);
 
         assertNotEquals(download1.getId(), download2.getId(), 
             "Each download should have a unique ID");
+    }
+
+    @Test
+    void testConstructorCreatesTempDirectory() throws DownloadException
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+
+        // Temp directory should be created: config.getTempDirectory() + "/" + downloadId
+        String expectedTempDir = tempDir + "/" + download.getId();
+        assertTrue(Files.exists(Paths.get(expectedTempDir)), 
+            "Download-specific temp directory should be created");
     }
 
     // ============================================================
@@ -200,7 +188,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "dummy.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         
         assertEquals(DownloadState.PENDING, download.getState());
         
@@ -214,6 +202,11 @@ class DownloadTest
         assertTrue(Files.exists(Paths.get(destination)), "Downloaded file should exist");
         assertTrue(Files.size(Paths.get(destination)) > 0, "Downloaded file should have content");
         assertNull(download.getError(), "Should have no error on success");
+        
+        // Verify temp directory was cleaned up
+        String tempDirPath = tempDir + "/" + download.getId();
+        assertFalse(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should be cleaned up after completion");
     }
 
     @Test
@@ -222,7 +215,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         download.start();
 
         assertThrows(IllegalStateException.class, () -> {
@@ -237,7 +230,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         
         assertEquals(0.0, download.getProgress(), 0.01, "Initial progress should be 0");
         
@@ -266,7 +259,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
 
         assertThrows(IllegalStateException.class, () -> {
             download.pause();
@@ -279,7 +272,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
 
         assertThrows(IllegalStateException.class, () -> {
             download.resume();
@@ -293,7 +286,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
 
         // Wait for download to make progress
@@ -327,7 +320,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         download.start();
 
         assertThrows(IllegalStateException.class, () -> {
@@ -343,7 +336,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
         Thread.sleep(100);
         
@@ -363,7 +356,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
 
         // Cycle through pause/resume multiple times
@@ -391,7 +384,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
 
         assertThrows(IllegalStateException.class, () -> {
             download.cancel();
@@ -405,7 +398,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
 
         Thread.sleep(200);
@@ -418,6 +411,11 @@ class DownloadTest
         download.awaitCompletion();
         
         assertEquals(DownloadState.CANCELLED, download.getState());
+        
+        // Verify temp directory was cleaned up
+        String tempDirPath = tempDir + "/" + download.getId();
+        assertFalse(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should be cleaned up after cancellation");
     }
 
     @Test
@@ -427,7 +425,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
 
         Thread.sleep(100);
@@ -440,6 +438,11 @@ class DownloadTest
         assertEquals(DownloadState.CANCELLED, download.getState());
         
         download.awaitCompletion();
+        
+        // Verify cleanup
+        String tempDirPath = tempDir + "/" + download.getId();
+        assertFalse(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should be cleaned up");
     }
 
     @Test
@@ -449,7 +452,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         download.start();
         download.awaitCompletion();
 
@@ -468,7 +471,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
 
         Thread.sleep(100);
@@ -481,6 +484,182 @@ class DownloadTest
     }
 
     // ============================================================
+    // STOP TESTS (NEW)
+    // ============================================================
+
+    @Test
+    void testStopBeforeStartThrowsException() throws DownloadException
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+
+        assertThrows(IllegalStateException.class, () -> {
+            download.stop();
+        }, "Cannot stop before starting");
+    }
+
+    @Test
+    @Timeout(30)
+    void testStopDuringDownload() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "large.mp4").toString();
+
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
+        download.start();
+
+        Thread.sleep(200);
+        
+        download.stop();
+        
+        assertEquals(DownloadState.STOPPED, download.getState());
+        
+        // Verify temp directory still exists (NOT cleaned up)
+        String tempDirPath = tempDir + "/" + download.getId();
+        assertTrue(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should NOT be cleaned up after stop");
+    }
+
+    @Test
+    @Timeout(30)
+    void testStopWhilePaused() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "large.mp4").toString();
+
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
+        download.start();
+
+        Thread.sleep(100);
+        download.pause();
+        
+        assertEquals(DownloadState.PAUSED, download.getState());
+        
+        download.stop();
+        
+        assertEquals(DownloadState.STOPPED, download.getState());
+        
+        // Verify temp files preserved
+        String tempDirPath = tempDir + "/" + download.getId();
+        assertTrue(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should be preserved for resume");
+    }
+
+    @Test
+    @Timeout(30)
+    void testStopAfterCompletion() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+        download.start();
+        download.awaitCompletion();
+
+        assertEquals(DownloadState.COMPLETED, download.getState());
+        
+        // Should not throw, just return
+        download.stop();
+        
+        assertEquals(DownloadState.COMPLETED, download.getState(), 
+            "State should remain COMPLETED");
+    }
+
+    @Test
+    void testMultipleStopCalls() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "large.mp4").toString();
+
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
+        download.start();
+
+        Thread.sleep(100);
+        
+        download.stop();
+        download.stop(); // Second stop should be safe
+        download.stop(); // Third stop should be safe
+
+        assertEquals(DownloadState.STOPPED, download.getState());
+    }
+
+    // ============================================================
+    // HELPER METHOD TESTS (NEW)
+    // ============================================================
+
+    @Test
+    void testGetUrl() throws DownloadException
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+
+        assertEquals(TEST_URL, download.getUrl());
+    }
+
+    @Test
+    void testGetDestination() throws DownloadException
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+
+        assertEquals(destination, download.getDestination());
+    }
+
+    @Test
+    void testGetFileName() throws DownloadException
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "myfile.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+
+        assertEquals("myfile.pdf", download.getFileName());
+    }
+
+    @Test
+    @Timeout(30)
+    void testGetDownloadedBytes() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+        
+        assertEquals(0, download.getDownloadedBytes(), "Should start at 0");
+        
+        download.start();
+        download.awaitCompletion();
+        
+        assertEquals(download.getTotalSize(), download.getDownloadedBytes(), 
+            "Should equal total size when complete");
+    }
+
+    @Test
+    @Timeout(30)
+    void testGetRemainingBytes() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "test.pdf").toString();
+
+        Download download = new Download(TEST_URL, destination, config, tracker);
+        
+        assertEquals(download.getTotalSize(), download.getRemainingBytes(), 
+            "Should equal total size initially");
+        
+        download.start();
+        download.awaitCompletion();
+        
+        assertEquals(0, download.getRemainingBytes(), 
+            "Should be 0 when complete");
+    }
+
+    // ============================================================
     // STATE MANAGEMENT TESTS
     // ============================================================
 
@@ -490,7 +669,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         
         assertEquals(DownloadState.PENDING, download.getState());
         download.start();
@@ -505,7 +684,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         download.start();
         
         assertEquals(DownloadState.DOWNLOADING, download.getState());
@@ -521,7 +700,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
         
         Thread.sleep(100);
@@ -539,7 +718,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "large.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
         
         Thread.sleep(100);
@@ -552,10 +731,25 @@ class DownloadTest
         download.cancel();
     }
 
+    @Test
+    void testStateTransitionDownloadingToStopped() throws Exception
+    {
+        ProgressTracker tracker = new ProgressTracker();
+        String destination = Paths.get(tempDir, "large.mp4").toString();
+
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
+        download.start();
+        
+        Thread.sleep(100);
+        
+        assertEquals(DownloadState.DOWNLOADING, download.getState());
+        download.stop();
+        assertEquals(DownloadState.STOPPED, download.getState());
+    }
+
     // ============================================================
     // ERROR HANDLING TESTS
     // ============================================================
-
 
     @Test
     void testGetErrorReturnsNullOnSuccess() throws Exception
@@ -563,7 +757,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "test.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         download.start();
         download.awaitCompletion();
 
@@ -590,8 +784,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "small.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, singleChunkConfig, 
-                                        tracker, executor);
+        Download download = new Download(TEST_URL, destination, singleChunkConfig, tracker);
         download.start();
         download.awaitCompletion();
 
@@ -615,8 +808,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "multi.pdf").toString();
 
-        Download download = new Download(TEST_URL, destination, multiChunkConfig, 
-                                        tracker, executor);
+        Download download = new Download(TEST_URL, destination, multiChunkConfig, tracker);
         download.start();
         download.awaitCompletion();
 
@@ -640,7 +832,7 @@ class DownloadTest
         ProgressTracker tracker = new ProgressTracker();
         String destination = Paths.get(tempDir, "concurrent.mp4").toString();
 
-        Download download = new Download(LARGE_TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(LARGE_TEST_URL, destination, config, tracker);
         download.start();
 
         // Multiple threads trying to pause/resume
@@ -707,7 +899,7 @@ class DownloadTest
         String destination = Paths.get(tempDir, "lifecycle.pdf").toString();
 
         // Create
-        Download download = new Download(TEST_URL, destination, config, tracker, executor);
+        Download download = new Download(TEST_URL, destination, config, tracker);
         assertEquals(DownloadState.PENDING, download.getState());
         assertNotNull(download.getId());
 
@@ -733,6 +925,11 @@ class DownloadTest
         assertEquals(download.getTotalSize(), Files.size(Paths.get(destination)));
         assertEquals(100.0, download.getProgress(), 0.01);
         assertNull(download.getError());
+        
+        // Verify cleanup
+        String tempDirPath = tempDir + "/" + download.getId();
+        assertFalse(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should be cleaned up");
     }
 }
 
@@ -750,5 +947,6 @@ Run tests by category (using method name patterns):
    mvn test -Dtest=DownloadTest#test*Pause*
    mvn test -Dtest=DownloadTest#test*Cancel*
    mvn test -Dtest=DownloadTest#test*State*
+   mvn test -Dtest=DownloadTest#test*Stop*
 
 ============================================================ */

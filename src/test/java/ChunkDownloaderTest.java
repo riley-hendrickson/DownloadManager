@@ -26,17 +26,22 @@ class ChunkDownloaderTest
     // Use a reliable test file - W3C dummy PDF (small, ~13KB)
     private static final String TEST_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
     
-    // Use a larger file for pause/resume/cancel tests (100KB sample image)
+    // Use a larger file for pause/resume/cancel tests
     private static final String LARGE_TEST_URL = "https://archive.org/download/Rick_Astley_Never_Gonna_Give_You_Up/Rick_Astley_Never_Gonna_Give_You_Up.mp4";
     
     private DownloadConfig config;
     private String tempDir;
+    private String chunkTempDir;
 
     @BeforeEach
-    void setUp(@TempDir Path tempDirectory)
+    void setUp(@TempDir Path tempDirectory) throws IOException
     {
         // Set up temp directory for test files
         tempDir = tempDirectory.toString();
+        
+        // Create a subdirectory for chunk downloads (simulating download-specific directory)
+        chunkTempDir = tempDir + "/test-download-id";
+        Files.createDirectories(Paths.get(chunkTempDir));
         
         // Create a config with faster timeouts for testing
         config = DownloadConfig.builder()
@@ -55,7 +60,7 @@ class ChunkDownloaderTest
     {
         // Clean up any test files
         Files.walk(Paths.get(tempDir))
-            .filter(Files::isRegularFile)
+            .sorted(java.util.Comparator.reverseOrder())
             .forEach(path -> {
                 try
                 {
@@ -68,12 +73,16 @@ class ChunkDownloaderTest
             });
     }
 
+    // ============================================================
+    // BASIC DOWNLOAD TESTS
+    // ============================================================
+
     @Test
     void testSuccessfulDownload()
     {
         // Download first 1KB of test file (bytes 0-1023 = 1024 bytes)
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-1",
+            chunkTempDir,
             TEST_URL,
             0,
             1023,
@@ -93,11 +102,17 @@ class ChunkDownloaderTest
     }
 
     @Test
-    void testDownloadMultipleChunks()
+    void testDownloadMultipleChunks() throws IOException
     {
+        // Create separate directories for each download to test isolation
+        String chunk1Dir = tempDir + "/download-1";
+        String chunk2Dir = tempDir + "/download-2";
+        Files.createDirectories(Paths.get(chunk1Dir));
+        Files.createDirectories(Paths.get(chunk2Dir));
+
         // Download first chunk (0-1023)
         ChunkDownloader chunk1 = new ChunkDownloader(
-            "test-download-2",
+            chunk1Dir,
             TEST_URL,
             0,
             1023,
@@ -109,7 +124,7 @@ class ChunkDownloaderTest
 
         // Download second chunk (1024-2047)
         ChunkDownloader chunk2 = new ChunkDownloader(
-            "test-download-2",
+            chunk2Dir,
             TEST_URL,
             1024,
             2047,
@@ -135,7 +150,7 @@ class ChunkDownloaderTest
     void testInvalidURL()
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-3",
+            chunkTempDir,
             "https://this-is-not-a-real-url-12345.com/file.bin",
             0,
             1023,
@@ -157,7 +172,7 @@ class ChunkDownloaderTest
     {
         // Request bytes beyond file size
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-4",
+            chunkTempDir,
             TEST_URL,
             999999999,
             999999999 + 1023,
@@ -173,57 +188,66 @@ class ChunkDownloaderTest
         assertTrue(result.hasError(), "Should have an error");
     }
 
+    // ============================================================
+    // CONSTRUCTOR VALIDATION TESTS
+    // ============================================================
+
     @Test
     void testConstructorValidation()
     {
-        // Test null download ID
+        // Test null parent directory
         assertThrows(IllegalArgumentException.class, () -> {
             new ChunkDownloader(null, TEST_URL, 0, 1023, 0, 0, config, null);
         });
 
-        // Test empty download ID
+        // Test empty parent directory
         assertThrows(IllegalArgumentException.class, () -> {
             new ChunkDownloader("", TEST_URL, 0, 1023, 0, 0, config, null);
         });
 
+        // Test non-existent parent directory
+        assertThrows(IllegalArgumentException.class, () -> {
+            new ChunkDownloader("/nonexistent/directory", TEST_URL, 0, 1023, 0, 0, config, null);
+        });
+
         // Test null URL
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", null, 0, 1023, 0, 0, config, null);
+            new ChunkDownloader(chunkTempDir, null, 0, 1023, 0, 0, config, null);
         });
 
         // Test empty URL
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", "", 0, 1023, 0, 0, config, null);
+            new ChunkDownloader(chunkTempDir, "", 0, 1023, 0, 0, config, null);
         });
 
         // Test negative start byte
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", TEST_URL, -1, 1023, 0, 0, config, null);
+            new ChunkDownloader(chunkTempDir, TEST_URL, -1, 1023, 0, 0, config, null);
         });
 
         // Test end byte less than start byte
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", TEST_URL, 1000, 500, 0, 0, config, null);
+            new ChunkDownloader(chunkTempDir, TEST_URL, 1000, 500, 0, 0, config, null);
         });
 
         // Test null config
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", TEST_URL, 0, 1023, 0, 0, null, null);
+            new ChunkDownloader(chunkTempDir, TEST_URL, 0, 1023, 0, 0, null, null);
         });
 
         // Test negative chunk index
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", TEST_URL, 0, 1023, 0, -1, config, null);
+            new ChunkDownloader(chunkTempDir, TEST_URL, 0, 1023, 0, -1, config, null);
         });
 
         // Test negative alreadyDownloaded
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", TEST_URL, 0, 1023, -1, 0, config, null);
+            new ChunkDownloader(chunkTempDir, TEST_URL, 0, 1023, -1, 0, config, null);
         });
 
         // Test alreadyDownloaded exceeds chunk size
         assertThrows(IllegalArgumentException.class, () -> {
-            new ChunkDownloader("test-id", TEST_URL, 0, 1023, 2000, 0, config, null);
+            new ChunkDownloader(chunkTempDir, TEST_URL, 0, 1023, 2000, 0, config, null);
         });
     }
 
@@ -231,7 +255,7 @@ class ChunkDownloaderTest
     void testGetBytesDownloaded()
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-5",
+            chunkTempDir,
             TEST_URL,
             0,
             511,  // 512 bytes
@@ -258,7 +282,7 @@ class ChunkDownloaderTest
     void testChunkResultProperties()
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-6",
+            chunkTempDir,
             TEST_URL,
             0,
             1023,
@@ -283,7 +307,7 @@ class ChunkDownloaderTest
     {
         // Download just 100 bytes (0-99 = 100 bytes)
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-7",
+            chunkTempDir,
             TEST_URL,
             0,
             99,
@@ -306,7 +330,7 @@ class ChunkDownloaderTest
         ProgressTracker tracker = new ProgressTracker();
 
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-8",
+            chunkTempDir,
             TEST_URL,
             0,
             1023,
@@ -336,7 +360,7 @@ class ChunkDownloaderTest
             .build();
 
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-9",
+            chunkTempDir,
             "https://httpstat.us/500",  // Returns 500 error
             0,
             1023,
@@ -358,7 +382,7 @@ class ChunkDownloaderTest
     {
         // Verify pause/resume/cancel methods exist and don't throw errors
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-10",
+            chunkTempDir,
             TEST_URL,
             0,
             1023,
@@ -462,7 +486,7 @@ class ChunkDownloaderTest
     void testPauseStopsDownload() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-pause-1",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             80000,
@@ -495,7 +519,7 @@ class ChunkDownloaderTest
     void testResumeAfterPause() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-resume-1",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             80000,
@@ -527,7 +551,7 @@ class ChunkDownloaderTest
     void testCancelStopsDownload() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-cancel-1",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             50000,
@@ -558,7 +582,7 @@ class ChunkDownloaderTest
     void testCancelWhilePaused() throws InterruptedException, ExecutionException, TimeoutException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-cancel-2",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             50000,
@@ -591,7 +615,7 @@ class ChunkDownloaderTest
     void testPauseBeforeStart() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-pause-2",
+            chunkTempDir,
             TEST_URL,
             0,
             10000,
@@ -621,7 +645,7 @@ class ChunkDownloaderTest
     void testResumeWithoutPause() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-resume-2",
+            chunkTempDir,
             TEST_URL,
             0,
             10000,
@@ -646,7 +670,7 @@ class ChunkDownloaderTest
     void testMultipleCancels() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-cancel-3",
+            chunkTempDir,
             TEST_URL,
             0,
             50000,
@@ -674,7 +698,7 @@ class ChunkDownloaderTest
     void testPauseThenCancel() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-pause-cancel",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             50000,
@@ -703,7 +727,7 @@ class ChunkDownloaderTest
     void testCompletedDownloadIgnoresPause() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-complete-pause",
+            chunkTempDir,
             TEST_URL,
             0,
             100,
@@ -729,7 +753,7 @@ class ChunkDownloaderTest
     void testConcurrentPauseResumeFromMultipleThreads() throws InterruptedException, ExecutionException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-concurrent",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             80000,
@@ -782,7 +806,7 @@ class ChunkDownloaderTest
     void testPauseDoesNotLoseData() throws InterruptedException, ExecutionException, IOException
     {
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-data-integrity",
+            chunkTempDir,
             LARGE_TEST_URL,
             0,
             20000,
@@ -820,7 +844,7 @@ class ChunkDownloaderTest
         // Test downloading with alreadyDownloaded > 0
         // This simulates resuming a partially completed chunk
         ChunkDownloader downloader = new ChunkDownloader(
-            "test-download-partial",
+            chunkTempDir,
             TEST_URL,
             0,
             2000,
@@ -844,10 +868,15 @@ class ChunkDownloaderTest
     }
 
     @Test
-    void testDifferentDownloadsUseDifferentDirectories()
+    void testDifferentDownloadsUseDifferentDirectories() throws IOException
     {
+        String dir1 = tempDir + "/download-id-1";
+        String dir2 = tempDir + "/download-id-2";
+        Files.createDirectories(Paths.get(dir1));
+        Files.createDirectories(Paths.get(dir2));
+
         ChunkDownloader downloader1 = new ChunkDownloader(
-            "download-id-1",
+            dir1,
             TEST_URL,
             0,
             1023,
@@ -858,7 +887,7 @@ class ChunkDownloaderTest
         );
 
         ChunkDownloader downloader2 = new ChunkDownloader(
-            "download-id-2",
+            dir2,
             TEST_URL,
             0,
             1023,
@@ -881,6 +910,38 @@ class ChunkDownloaderTest
         assertTrue(path1.contains("download-id-1"), "Path should contain download ID 1");
         assertTrue(path2.contains("download-id-2"), "Path should contain download ID 2");
         assertNotEquals(path1, path2, "Different downloads should use different paths");
+    }
+
+    @Test
+    void testChunkFilesStoredInParentDirectory() throws IOException
+    {
+        String parentDir = tempDir + "/specific-download";
+        Files.createDirectories(Paths.get(parentDir));
+
+        ChunkDownloader downloader = new ChunkDownloader(
+            parentDir,
+            TEST_URL,
+            0,
+            1023,
+            0,
+            0,
+            config,
+            null
+        );
+
+        ChunkResult result = downloader.call();
+
+        assertTrue(result.isSuccessful());
+        
+        // Verify the chunk file is in the parent directory
+        String chunkPath = result.getTempFilePath();
+        assertTrue(chunkPath.startsWith(parentDir), 
+            "Chunk file should be in parent directory. Expected to start with: " + 
+            parentDir + ", but was: " + chunkPath);
+        
+        // Verify file exists
+        assertTrue(Files.exists(Paths.get(chunkPath)), 
+            "Chunk file should exist at: " + chunkPath);
     }
 }
 

@@ -72,11 +72,6 @@ class FileAssemblerTest
         assertTrue(Files.exists(Paths.get(destination)), "Output file should exist");
         String content = Files.readString(Paths.get(destination));
         assertEquals("Hello World!", content, "File should contain merged content");
-
-        // Verify temp files were cleaned up
-        assertFalse(Files.exists(chunk0), "Chunk 0 should be deleted");
-        assertFalse(Files.exists(chunk1), "Chunk 1 should be deleted");
-        assertFalse(Files.exists(chunk2), "Chunk 2 should be deleted");
     }
 
     @Test
@@ -301,12 +296,6 @@ class FileAssemblerTest
 
         String content = Files.readString(Paths.get(destination));
         assertEquals("Chunk0Chunk1Chunk2Chunk3Chunk4Chunk5Chunk6Chunk7Chunk8Chunk9", content);
-
-        // Verify all chunks cleaned up
-        for (int i = 0; i < 10; i++)
-        {
-            assertFalse(Files.exists(Paths.get(tempDir, "chunk" + i + ".bin")));
-        }
     }
 
     @Test

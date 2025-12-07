@@ -6,7 +6,6 @@ import io.rileyhe1.concurrency.Util.Download;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -548,6 +547,37 @@ class DownloadManagerTest
     }
 
     @Test
+    @Timeout(30)
+    @Tag("network")
+    void testPersistenceSavesStoppedDownloads() throws Exception
+    {
+        String destination = Paths.get(tempDir, "stopped.mp4").toString();
+        Download download = manager.startDownload(LARGE_TEST_URL, destination);
+        
+        Thread.sleep(200);
+        
+        String downloadId = download.getId();
+        
+        // Shutdown stops downloads automatically
+        manager.shutdown();
+        
+        // Verify downloads.json was created
+        assertTrue(Files.exists(Paths.get("downloads.json")), 
+            "downloads.json should be created");
+        
+        // Create new manager and verify download was loaded
+        DownloadManager newManager = new DownloadManager(config);
+        Download loaded = newManager.getDownload(downloadId);
+        
+        assertNotNull(loaded, "Stopped download should be loaded");
+        assertEquals(downloadId, loaded.getId());
+        assertEquals(DownloadState.PENDING, loaded.getState(), 
+            "Loaded download should be in PENDING state");
+        
+        newManager.shutdown();
+    }
+
+    @Test
     @Tag("network")
     void testLoadDownloadsWithNoFile() throws IOException, DownloadException
     {
@@ -570,7 +600,7 @@ class DownloadManagerTest
     @Test
     @Timeout(30)
     @Tag("network")
-    void testShutdownPausesActiveDownloads() throws Exception
+    void testShutdownStopsActiveDownloads() throws Exception
     {
         String destination = Paths.get(tempDir, "shutdown.mp4").toString();
         Download download = manager.startDownload(LARGE_TEST_URL, destination);
@@ -580,8 +610,26 @@ class DownloadManagerTest
         
         manager.shutdown();
         
-        // After shutdown, download should be paused
+        // After shutdown, download should be stopped
+        assertEquals(DownloadState.STOPPED, download.getState());
+    }
+
+    @Test
+    @Timeout(30)
+    @Tag("network")
+    void testShutdownStopsPausedDownloads() throws Exception
+    {
+        String destination = Paths.get(tempDir, "shutdown-paused.mp4").toString();
+        Download download = manager.startDownload(LARGE_TEST_URL, destination);
+        
+        Thread.sleep(200);
+        manager.pauseDownload(download.getId());
         assertEquals(DownloadState.PAUSED, download.getState());
+        
+        manager.shutdown();
+        
+        // After shutdown, paused download should be stopped
+        assertEquals(DownloadState.STOPPED, download.getState());
     }
 
     @Test
@@ -606,6 +654,26 @@ class DownloadManagerTest
             manager.shutdown();
             manager.shutdown();
         }, "Shutdown should be idempotent");
+    }
+
+    @Test
+    @Timeout(30)
+    @Tag("network")
+    void testShutdownPreservesTempFilesForStoppedDownloads() throws Exception
+    {
+        String destination = Paths.get(tempDir, "preserve.mp4").toString();
+        Download download = manager.startDownload(LARGE_TEST_URL, destination);
+        
+        Thread.sleep(200);
+        
+        String downloadId = download.getId();
+        String tempDirPath = tempDir + "/" + downloadId;
+        
+        manager.shutdown();
+        
+        // Temp directory should still exist for stopped downloads
+        assertTrue(Files.exists(Paths.get(tempDirPath)), 
+            "Temp directory should be preserved for resume");
     }
 
     // ============================================================
@@ -655,7 +723,6 @@ class DownloadManagerTest
     }
 
     @Test
-    @Disabled
     @Timeout(60)
     @Tag("network")
     @Tag("integration")
@@ -683,7 +750,6 @@ class DownloadManagerTest
         assertEquals(DownloadState.COMPLETED, download1.getState());
         assertEquals(DownloadState.PAUSED, download2.getState());
         assertEquals(DownloadState.COMPLETED, download3.getState());
-        System.out.println("States of the downloads are as expected");
         
         // Resume and complete the paused one
         manager.resumeDownload(download2.getId());
@@ -717,9 +783,9 @@ class DownloadManagerTest
         
         manager.shutdown();
         
-        // All operations should fail gracefully or throw appropriate exceptions
-        // The behavior depends on your implementation
-        // This test documents the expected behavior
+        // Operations after shutdown should fail gracefully
+        // The exact behavior depends on your implementation
+        // Document expected behavior here
     }
 }
 
