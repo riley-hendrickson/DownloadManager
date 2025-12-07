@@ -16,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import io.rileyhe1.concurrency.Data.ChunkResult;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
@@ -267,7 +268,18 @@ public class Download
 
             // assemble the final file
             FileAssembler.assembleChunks(results, destination);
+            // shut down the executor to make sure all file descriptors are closed and all threads stop their work
             executorService.shutdownNow();
+            // give the executor up to 5 seconds to actually terminate before we close temp files
+            try
+            {
+                if(!executorService.awaitTermination(1, TimeUnit.SECONDS)) System.err.println("Executor did not terminate in time for download " + id);
+            }
+            catch(InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+                System.err.println("Interrupted while waiting for executor termination");
+            }
             cleanupTempFiles();
             synchronized(this)
             {
@@ -350,8 +362,20 @@ public class Download
         {
             future.cancel(true);
         }
-
+        // shutdown the executor service (interrupts all worker threads that may still be running, which causes them to close their file descriptors)
         executorService.shutdownNow();
+        // wait for the executor to actually terminate 
+        // (if we don't wait here, there's a chance the executor won't finish interrupting all of the worker threads, and file descriptors will still be open,
+        // leading to a race condition that can result in a runtime exception when we try to delete a file when a worker thread still has an open descriptor for it)
+        try
+        {
+            if(!executorService.awaitTermination(1, TimeUnit.SECONDS)) System.err.println("Executor did not terminate in time for download " + id);
+        }
+        catch(InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+            System.err.println("Interrupted while waiting for executor termination");
+        }
         cleanupTempFiles();
     }
     // stops a download without deleting its temp files so we can pick it up later
@@ -377,6 +401,17 @@ public class Download
             future.cancel(true);
         }
         executorService.shutdownNow();
+        // wait for the executor to actually terminate 
+        // (if we don't wait here, there's a chance the executor won't finish interrupting all of the worker threads, and file descriptors will still be open)
+        try
+        {
+            if(!executorService.awaitTermination(1, TimeUnit.SECONDS)) System.err.println("Executor did not terminate in time for download " + id);
+        }
+        catch(InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+            System.err.println("Interrupted while waiting for executor termination");
+        }
     }
 
     public void awaitCompletion() throws InterruptedException, DownloadException
