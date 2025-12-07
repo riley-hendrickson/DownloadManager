@@ -4,16 +4,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -26,12 +22,10 @@ import io.rileyhe1.concurrency.Data.DownloadState;
 import io.rileyhe1.concurrency.Util.Download;
 import io.rileyhe1.concurrency.Util.ProgressTracker;
 
-@SuppressWarnings("unused")
 public class DownloadManager
 {
     private static final String DOWNLOADS_FILE = "downloads.json";
 
-    ExecutorService executorService;
     Map<String, Download> activeDownloads;
     DownloadConfig config;
 
@@ -41,7 +35,6 @@ public class DownloadManager
         {
             throw new IllegalArgumentException("Config cannot be null");
         }
-        this.executorService = Executors.newFixedThreadPool(config.getNumberOfThreads());
         this.activeDownloads = new ConcurrentHashMap<>();
         this.config = config;
 
@@ -63,7 +56,7 @@ public class DownloadManager
         }
         // create the download and store it, more input validation is done in the Download constructor
         ProgressTracker progressTracker = new ProgressTracker();
-        Download download = new Download(url, destination, config, progressTracker, executorService);
+        Download download = new Download(url, destination, config, progressTracker);
         activeDownloads.put(download.getId(), download);
 
         // start the download and return its handle
@@ -175,7 +168,7 @@ public class DownloadManager
             }
             
             // Create Download (will be in PENDING state initially)
-            Download download = new Download(snapshot, config, tracker, executorService);
+            Download download = new Download(snapshot, config, tracker);
             
             // Add to active downloads
             activeDownloads.put(download.getId(), download);
@@ -257,15 +250,15 @@ public class DownloadManager
         activeDownloads.clear();
     }
     // convinience method for GUI
-    private void validateURL(String url) throws IllegalArgumentException
-    {
-        try 
-        {
-            URI.create(url).toURL();
-        }
-        catch(Exception e)
-        {
-            throw new IllegalArgumentException("Invalid URL format: " + url, e);
-        }
-    }
+    // private void validateURL(String url) throws IllegalArgumentException
+    // {
+    //     try 
+    //     {
+    //         URI.create(url).toURL();
+    //     }
+    //     catch(Exception e)
+    //     {
+    //         throw new IllegalArgumentException("Invalid URL format: " + url, e);
+    //     }
+    // }
 }
