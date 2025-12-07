@@ -117,7 +117,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
                 lastException = e;
 
                 // log the attempt:
-                System.err.println("Chunk " + this.chunkIndex + " attempt " + (attempt + 1) + " failed: " + e.getMessage());
+                // System.err.println("Chunk " + this.chunkIndex + " attempt " + (attempt + 1) + " failed: " + e.getMessage());
 
                 // if this was not the last attempt, wait for a retry:
                 if(attempt < config.getMaxRetries() - 1)
