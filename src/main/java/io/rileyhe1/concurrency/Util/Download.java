@@ -271,6 +271,7 @@ public class Download
 
             // assemble the final file
             FileAssembler.assembleChunks(results, destination);
+            executorService.shutdownNow();
             cleanupTempFiles();
             synchronized(this)
             {
@@ -354,8 +355,8 @@ public class Download
             future.cancel(true);
         }
 
-        cleanupTempFiles();
         executorService.shutdownNow();
+        cleanupTempFiles();
     }
     // stops a download without deleting its temp files so we can pick it up later
     public synchronized void stop()
