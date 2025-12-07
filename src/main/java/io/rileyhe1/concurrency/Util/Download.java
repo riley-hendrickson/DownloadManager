@@ -390,30 +390,32 @@ public class Download
 
     private void cleanupTempFiles()
     {
-        // collect all the temp file paths and attempt to delete them
-        for(ChunkResult result : results)
-        {
-            if(result.getTempFilePath() != null)
-            {
-                try
-                {
-                    Files.deleteIfExists(Paths.get(result.getTempFilePath()));
-                }
-                catch(IOException e)
-                {
-                    // Log but don't fail - cleanup is best-effort
-                    System.err.println("Failed to delete temp file for chunk " + result.getChunkIndex() + " in download " + id);
-                }
-            }
-        }
-        // delete this download's directory
         try
         {
-            Files.deleteIfExists(Paths.get(tempDirectory));
-        } catch (IOException e)
+            Path tempDir = Paths.get(tempDirectory);
+            if(Files.exists(tempDir))
+            {
+                Files.walk(tempDir)
+                    .filter(Files::isRegularFile)
+                    .forEach(path -> 
+                    {
+                        try
+                        {
+                            Files.deleteIfExists(path);
+                        }
+                        catch(IOException e)
+                        {
+                            // Best effort
+                        }
+                    });
+                
+                // Delete the directory itself
+                Files.deleteIfExists(tempDir);
+            }
+        }
+        catch(IOException e)
         {
-            // Log but don't fail - cleanup is best-effort
-            System.err.println("Failed to delete parent directory for download " + id);
+            System.err.println("Failed to clean up temp directory: " + tempDirectory);
         }
     }
 
