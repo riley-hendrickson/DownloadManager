@@ -7,5 +7,6 @@ public enum DownloadState
     PAUSED,
     COMPLETED,
     FAILED,
-    CANCELLED   
+    CANCELLED,
+    STOPPED   
 }
