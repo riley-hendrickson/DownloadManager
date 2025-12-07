@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import io.rileyhe1.concurrency.Data.DownloadState;
 public class Download
 {
     private String id;
+    private String tempDirectory;
     private String url;
     private String destination;
     private final DownloadConfig config;
@@ -59,6 +61,22 @@ public class Download
         this.config = config;
         this.progressTracker = progressTracker;
         this.state = DownloadState.PENDING;
+
+        // Create download-specific temp directory
+        this.tempDirectory = config.getTempDirectory() + "/" + id;
+        Path tempDirPath = Paths.get(tempDirectory);
+        
+        try
+        {
+            if(!Files.exists(tempDirPath))
+            {
+                Files.createDirectories(tempDirPath);
+            }
+        }
+        catch(IOException e)
+        {
+            throw new IllegalArgumentException("Failed to create temp directory: " + tempDirectory, e);
+        }
 
         // initialize other instance fields:
         this.chunks = new ArrayList<>();
@@ -146,6 +164,7 @@ public class Download
         this.progressTracker = progressTracker;
         this.executorService = Executors.newFixedThreadPool(numChunks + 1);
         this.state = DownloadState.PENDING;
+        this.tempDirectory = config.getTempDirectory() + "/" + id;
 
         // Initialize other instance fields:
         this.chunks = new ArrayList<>();
@@ -165,7 +184,7 @@ public class Download
         {   
             endByte = (i == numChunks - 1) ? totalSize - 1 : startByte + chunkSize - 1;
 
-            ChunkDownloader curChunk = new ChunkDownloader(id, url, startByte, endByte, 0, i, config, progressTracker);
+            ChunkDownloader curChunk = new ChunkDownloader(tempDirectory, url, startByte, endByte, 0, i, config, progressTracker);
             chunks.add(curChunk);
             futureResults.add(executorService.submit(curChunk));
 
@@ -194,7 +213,7 @@ public class Download
             // Get saved progress for this chunk (default to 0 if not found)
             long alreadyDownloaded = savedChunkProgress.getOrDefault(i, 0L);
 
-            ChunkDownloader curChunk = new ChunkDownloader(id, url, startByte, endByte, alreadyDownloaded, 
+            ChunkDownloader curChunk = new ChunkDownloader(tempDirectory, url, startByte, endByte, alreadyDownloaded, 
                                                         i, config, progressTracker);
             chunks.add(curChunk);
             futureResults.add(executorService.submit(curChunk));
@@ -252,7 +271,7 @@ public class Download
 
             // assemble the final file
             FileAssembler.assembleChunks(results, destination);
-
+            cleanupTempFiles();
             synchronized(this)
             {
                 if(state != DownloadState.CANCELLED)
@@ -335,6 +354,45 @@ public class Download
             future.cancel(true);
         }
 
+        cleanupTempFiles();
+        executorService.shutdownNow();
+    }
+    // stops a download without deleting its temp files so we can pick it up later
+    public synchronized void stop()
+    {
+        if(state == DownloadState.PENDING)
+        {
+            throw new IllegalStateException("Cannot stop: Download has not been started yet");
+        }
+        // if the download is complete, already cancelled, or stopped there is nothing to do.
+        if(state == DownloadState.COMPLETED || state == DownloadState.CANCELLED || state == DownloadState.STOPPED) return;
+        state = DownloadState.STOPPED;
+
+        // cancel all chunks
+        for(ChunkDownloader chunk : chunks)
+        {
+            chunk.cancel();
+        }
+
+        // cancel any pending futures:
+        for(Future<ChunkResult> future : futureResults)
+        {
+            future.cancel(true);
+        }
+        executorService.shutdownNow();
+    }
+
+    public void awaitCompletion() throws InterruptedException, DownloadException
+    {
+        completionLatch.await();
+        if(state == DownloadState.FAILED && error != null)
+        {
+            throw new DownloadException("Download failed", error, id, url);
+        }
+    }
+
+    private void cleanupTempFiles()
+    {
         // collect all the temp file paths and attempt to delete them
         for(ChunkResult result : results)
         {
@@ -347,17 +405,18 @@ public class Download
                 catch(IOException e)
                 {
                     // Log but don't fail - cleanup is best-effort
+                    System.err.println("Failed to delete temp file for chunk " + result.getChunkIndex() + " in download " + id);
                 }
             }
         }
-    }
-
-    public void awaitCompletion() throws InterruptedException, DownloadException
-    {
-        completionLatch.await();
-        if(state == DownloadState.FAILED && error != null)
+        // delete this download's directory
+        try
         {
-            throw new DownloadException("Download failed", error, id, url);
+            Files.deleteIfExists(Paths.get(tempDirectory));
+        } catch (IOException e)
+        {
+            // Log but don't fail - cleanup is best-effort
+            System.err.println("Failed to delete parent directory for download " + id);
         }
     }
 
