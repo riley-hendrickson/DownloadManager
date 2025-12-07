@@ -44,15 +44,13 @@ public class Download
     private Map<Integer, Long> savedChunkProgress;
 
     private Exception error;
-    // TODO: REMOVE EXECUTOR SERVICE FROM CONSTRUCTOR AND ADJUST USAGE ACCORDINGLY
-    public Download(String url, String destination, DownloadConfig config, ProgressTracker progressTracker, ExecutorService executorService) throws DownloadException
+    public Download(String url, String destination, DownloadConfig config, ProgressTracker progressTracker) throws DownloadException
     {
         // validate arguments
         if(url == null || url.trim().isEmpty()) throw new IllegalArgumentException("URL cannot be null or empty!");
         if(destination == null || destination.trim().isEmpty()) throw new IllegalArgumentException("Destination cannot be null or empty!");
         if(config == null) throw new IllegalArgumentException("Config cannot be null!");
         if(progressTracker == null) throw new IllegalArgumentException("Progress Tracker cannot be null!");
-        if(executorService == null) throw new IllegalArgumentException("Executor Service cannot be null!");
         // assign unique id for the download
         this.id = UUID.randomUUID().toString();
         // store arguments
@@ -141,7 +139,7 @@ public class Download
     // need to remove executor service from constructor and adjust usage accordingly
     // constructor for loading from snapshot
     public Download(DownloadSnapshot snapshot, DownloadConfig config, 
-                ProgressTracker progressTracker, ExecutorService executorService) throws DownloadException
+                ProgressTracker progressTracker) throws DownloadException
     {
         // Basic validation
         if(snapshot == null) 
@@ -150,8 +148,6 @@ public class Download
             throw new IllegalArgumentException("Config cannot be null!");
         if(progressTracker == null) 
             throw new IllegalArgumentException("Progress Tracker cannot be null!");
-        if(executorService == null) 
-            throw new IllegalArgumentException("Executor Service cannot be null!");
         
         // Restore from snapshot
         this.id = snapshot.getId(); 
