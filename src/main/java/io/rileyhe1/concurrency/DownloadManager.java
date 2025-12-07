@@ -121,9 +121,7 @@ public class DownloadManager
         for(Download download : activeDownloads.values())
         {
             DownloadState state = download.getState();
-            if(state == DownloadState.DOWNLOADING || 
-            state == DownloadState.PAUSED || 
-            state == DownloadState.FAILED)
+            if(state == DownloadState.STOPPED)
             {
                 snapshots.add(download.createSnapshot());
             }
@@ -197,18 +195,31 @@ public class DownloadManager
 
     public void shutdown()
     {
-        // Pause all active downloads
+        // Stop all active and paused downloads
         for(Download download : activeDownloads.values())
         {
-            if(download.getState() == DownloadState.DOWNLOADING)
+            DownloadState downloadState = download.getState();
+            if(downloadState == DownloadState.DOWNLOADING || 
+               downloadState == DownloadState.PAUSED)
             {
                 try
                 {
-                    download.pause();
+                    // if the download is running, try to pause it to allow any current read/write to finish before stopping it to prevent data loss
+                    if(downloadState != DownloadState.PAUSED)
+                    {
+                        download.pause();
+                        Thread.sleep(10);
+                    }
+                    download.stop();
                 }
                 catch(IllegalStateException e)
                 {
-                    // Download might have completed/failed between check and pause - which we will ignore
+                    // Download might have completed/failed between check and stop - which we will ignore
+                }
+                catch(InterruptedException e)
+                {
+                    // Manager thread interrupted while waiting for download to pause, we'll just restore interrupted state
+                    Thread.currentThread().interrupt();
                 }
             }
         }
@@ -240,23 +251,6 @@ public class DownloadManager
                     // Illegal state exception only throws if already completed/cancelled - so we'll just ignore it
                 }
             }
-        }
-        
-        // Shutdown executor
-        executorService.shutdownNow();
-        
-        try
-        {
-            // Wait for termination with timeout (10 seconds)
-            if(!executorService.awaitTermination(10, TimeUnit.SECONDS))
-            {   
-                System.err.println("ExecutorService did not terminate within 10 seconds");
-            }
-        }
-        catch(InterruptedException e)
-        {
-            // Current thread was interrupted during shutdown
-            Thread.currentThread().interrupt();
         }
         
         // Lastly we clear the map
