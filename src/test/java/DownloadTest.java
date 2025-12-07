@@ -26,7 +26,7 @@ class DownloadTest
 {
     // Test URLs
     private static final String TEST_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
-    private static final String LARGE_TEST_URL = "https://archive.org/download/Rick_Astley_Never_Gonna_Give_You_Up/Rick_Astley_Never_Gonna_Give_You_Up.mp4";
+    private static final String LARGE_TEST_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
     
     private DownloadConfig config;
     private String tempDir;
@@ -290,7 +290,7 @@ class DownloadTest
         download.start();
 
         // Wait for download to make progress
-        Thread.sleep(1500);
+        Thread.sleep(100);
         
         download.pause();
         assertEquals(DownloadState.PAUSED, download.getState());
@@ -299,7 +299,7 @@ class DownloadTest
         assertTrue(progressAtPause > 0, "Should have some progress when paused. Progress was: " + progressAtPause);
         
         // Wait and verify progress doesn't increase while paused
-        Thread.sleep(500);
+        Thread.sleep(50);
         assertEquals(progressAtPause, download.getProgress(), 0.1, 
             "Progress should not increase while paused");
         
@@ -307,7 +307,7 @@ class DownloadTest
         assertEquals(DownloadState.DOWNLOADING, download.getState());
         
         // Wait for more progress
-        Thread.sleep(500);
+        Thread.sleep(100);
         assertTrue(download.getProgress() > progressAtPause, 
             "Progress should increase after resume");
         

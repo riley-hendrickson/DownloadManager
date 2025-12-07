@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DownloadManagerTest
 {
     private static final String TEST_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
-    private static final String LARGE_TEST_URL = "https://archive.org/download/Rick_Astley_Never_Gonna_Give_You_Up/Rick_Astley_Never_Gonna_Give_You_Up.mp4";
+    private static final String LARGE_TEST_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
     
     private DownloadManager manager;
     private DownloadConfig config;
