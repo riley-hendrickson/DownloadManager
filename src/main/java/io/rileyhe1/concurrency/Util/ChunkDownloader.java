@@ -8,6 +8,9 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import io.rileyhe1.concurrency.Data.ChunkResult;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
@@ -31,11 +34,11 @@ public class ChunkDownloader implements Callable<ChunkResult>
 
     
 
-    public ChunkDownloader(String downloadId, String url, long startByte, long endByte, long alreadyDownloaded, int chunkIndex,
+    public ChunkDownloader(String parentDirectory, String url, long startByte, long endByte, long alreadyDownloaded, int chunkIndex,
             DownloadConfig config, ProgressTracker progressTracker)
     {
         // validate parameters:
-        if(downloadId == null || downloadId.trim().isEmpty())
+        if(parentDirectory == null || parentDirectory.trim().isEmpty())
         {
             throw new IllegalArgumentException("Download id cannot be null or empty");
         }
@@ -73,28 +76,20 @@ public class ChunkDownloader implements Callable<ChunkResult>
             throw new IllegalArgumentException("Chunk index cannot be less than zero");
         }
 
-        // Create download-specific temp directory
-        String downloadTempDir = config.getTempDirectory() + "/" + downloadId;
-        java.nio.file.Path tempDirPath = java.nio.file.Paths.get(downloadTempDir);
+        // Validate parent directory exists
+        Path tempDirPath = Paths.get(parentDirectory);
+        if(!Files.exists(tempDirPath))
+        {
+            throw new IllegalArgumentException("Parent Directory doesn't exist!");
+        }
         
-        try
-        {
-            if(!java.nio.file.Files.exists(tempDirPath))
-            {
-                java.nio.file.Files.createDirectories(tempDirPath);
-            }
-        }
-        catch(IOException e)
-        {
-            throw new IllegalArgumentException("Failed to create temp directory: " + downloadTempDir, e);
-        }
 
         // assign fields
         this.url = url;
         this.startByte = startByte + alreadyDownloaded;
         this.endByte = endByte;
         this.chunkIndex = chunkIndex;
-        this.tempFilePath = downloadTempDir + "/chunk" + this.chunkIndex + ".bin";
+        this.tempFilePath = parentDirectory + "/chunk" + this.chunkIndex + ".bin";
         this.config = config;
         this.progressTracker = progressTracker;
         this.bytesDownloaded = new AtomicLong(alreadyDownloaded);
