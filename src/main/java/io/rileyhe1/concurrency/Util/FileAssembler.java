@@ -31,8 +31,8 @@ public class FileAssembler
         }
         // merge chunks to destination file
         mergeFiles(tempFiles, destination);
-        // clean up and delete chunk temp directories
-        cleanupTempFiles(tempFiles);
+        // clean up and delete chunk temp directories now handled in download
+        // cleanupTempFiles(tempFiles);
     }
 
     private static void validateChunks(List<ChunkResult> results) throws IOException
@@ -96,11 +96,11 @@ public class FileAssembler
         // output file closes here because we opened via try with resources block
     }
 
-    public static void cleanupTempFiles(List<String> tempFiles) throws IOException
-    {
-        for(String tempFile : tempFiles)
-        {
-            Files.deleteIfExists(Paths.get(tempFile));
-        }
-    }
+    // public static void cleanupTempFiles(List<String> tempFiles) throws IOException
+    // {
+    //     for(String tempFile : tempFiles)
+    //     {
+    //         Files.deleteIfExists(Paths.get(tempFile));
+    //     }
+    // }
 }
