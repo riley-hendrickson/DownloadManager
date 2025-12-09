@@ -578,6 +578,83 @@ class DownloadManagerTest
     }
 
     @Test
+    @Timeout(60)
+    @Tag("network")
+    @Tag("integration")
+    void testResumePersistedDownloadToCompletion() throws Exception
+    {
+        String destination = Paths.get(tempDir, "persisted.mp4").toString();
+        
+        // ========== PHASE 1: Start and partially download ==========
+        Download download = manager.startDownload(LARGE_TEST_URL, destination);
+        String downloadId = download.getId();
+        
+        // Wait for 30-40% progress
+        long targetProgress = (long)(download.getTotalSize() * 0.35);
+        long timeout = System.currentTimeMillis() + 10000; // 10 second timeout
+        
+        while (download.getDownloadedBytes() < targetProgress && 
+            System.currentTimeMillis() < timeout)
+        {
+            Thread.sleep(5);
+        }
+        
+        assertTrue(download.getProgress() > 20, 
+            "Should have made significant progress before pause. Was: " + download.getProgress());
+        long bytesBeforePause = download.getDownloadedBytes();
+        
+        // Pause and save
+        manager.pauseDownload(downloadId);
+        assertEquals(DownloadState.PAUSED, download.getState());
+        manager.shutdown();
+        
+        // Verify persistence file exists
+        assertTrue(Files.exists(Paths.get("downloads.json")), 
+            "Persistence file should be created");
+        
+        
+        // ========== PHASE 2: Load and resume ==========
+        DownloadManager newManager = new DownloadManager(config);
+        Download loaded = newManager.getDownload(downloadId);
+        
+        assertNotNull(loaded, "Download should be loaded from persistence");
+        assertEquals(downloadId, loaded.getId(), "ID should be preserved");
+        assertEquals(DownloadState.PENDING, loaded.getState(), 
+            "Loaded download should be in PENDING state");
+        
+        // Resume - should call startExisting() internally
+        newManager.resumeDownload(downloadId);
+        assertEquals(DownloadState.DOWNLOADING, loaded.getState());
+        
+        // Progress should start where we left off
+        assertTrue(loaded.getDownloadedBytes() >= bytesBeforePause * 0.9, 
+            "Resumed download should preserve most progress. Before: " + bytesBeforePause + 
+            ", After: " + loaded.getDownloadedBytes());
+        
+        
+        // ========== PHASE 3: Complete download ==========
+        loaded.awaitCompletion();
+        
+        assertEquals(DownloadState.COMPLETED, loaded.getState(), 
+            "Download should complete successfully");
+        assertTrue(Files.exists(Paths.get(destination)), 
+            "Downloaded file should exist");
+        
+        long expectedSize = loaded.getTotalSize();
+        long actualSize = Files.size(Paths.get(destination));
+        assertEquals(expectedSize, actualSize, 
+            "File size should match expected size");
+        
+        assertEquals(100.0, loaded.getProgress(), 0.01, 
+            "Progress should be 100%");
+        
+        assertNull(loaded.getError(), 
+            "Should have no errors");
+        
+        newManager.shutdown();
+    }
+
+    @Test
     @Tag("network")
     void testLoadDownloadsWithNoFile() throws IOException, DownloadException
     {

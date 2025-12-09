@@ -65,7 +65,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
         if(startByte + alreadyDownloaded > endByte)
         {
             throw new IllegalArgumentException("Start byte + already downloaded exceeds end byte. Start: " 
-            + startByte + " , Already Downloaded: " + alreadyDownloaded + "End: " + endByte);
+            + startByte + " , Already Downloaded: " + alreadyDownloaded + " End: " + endByte);
         }
         if(config == null)
         {
@@ -226,5 +226,9 @@ public class ChunkDownloader implements Callable<ChunkResult>
     public long getBytesDownloaded()
     {
         return this.bytesDownloaded.get();
+    }
+    public int getChunkIndex()
+    {
+        return this.chunkIndex;
     }
 }

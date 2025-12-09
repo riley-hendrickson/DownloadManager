@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -209,11 +210,26 @@ public class Download
 
             // Get saved progress for this chunk (default to 0 if not found)
             long alreadyDownloaded = savedChunkProgress.getOrDefault(i, 0L);
-
-            ChunkDownloader curChunk = new ChunkDownloader(tempDirectory, url, startByte, endByte, alreadyDownloaded, 
+            long expectedChunkSize = (endByte - startByte) + 1;
+            // skip chunks that have already completed
+            if(alreadyDownloaded >= expectedChunkSize)
+            {
+                // create a completed result for the chunk
+                String chunkPath = tempDirectory + "/chunk" + i + ".bin";
+                ChunkResult completedResult = ChunkResult.success(chunkPath, alreadyDownloaded, i);
+                // results.add(completedResult);
+                // create a dummy completable future
+                futureResults.add(CompletableFuture.completedFuture(completedResult));
+                System.out.println("DEBUG: Skipping completed chunk " + i + " - size: " + alreadyDownloaded);
+            }
+            else
+            {
+                System.out.println("DEBUG: Downloading chunk " + i + " - resuming from: " + startByte + alreadyDownloaded);
+                ChunkDownloader curChunk = new ChunkDownloader(tempDirectory, url, startByte, endByte, alreadyDownloaded, 
                                                         i, config, progressTracker);
-            chunks.add(curChunk);
-            futureResults.add(executorService.submit(curChunk));
+                chunks.add(curChunk);
+                futureResults.add(executorService.submit(curChunk));
+            }
 
             startByte += chunkSize;
         }
@@ -231,6 +247,10 @@ public class Download
                 try
                 {
                     ChunkResult result = futureResult.get();
+
+                    System.out.println("DEBUG: Collected result for chunk " + result.getChunkIndex() + 
+                       " - bytes: " + result.getBytesDownloaded() + 
+                       " - path: " + result.getTempFilePath());
 
                     // Check if cancelled during collection
                     if(state == DownloadState.CANCELLED)
@@ -457,9 +477,15 @@ public class Download
     public DownloadSnapshot createSnapshot()
     {
         Map<Integer, Long> progress = new HashMap<>();
-        for(int i = 0; i < chunks.size(); i++)
+        // include saved progress from previously completed chunks
+        if(savedChunkProgress != null)
         {
-            progress.put(i, chunks.get(i).getBytesDownloaded());
+            progress.putAll(savedChunkProgress);
+        }
+        // update progress with current progress from active chunks
+        for(ChunkDownloader chunk : chunks)
+        {
+            progress.put(chunk.getChunkIndex(), chunk.getBytesDownloaded());
         }
         
         return new DownloadSnapshot(
