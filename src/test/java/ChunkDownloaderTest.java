@@ -712,7 +712,7 @@ class ChunkDownloaderTest
         Thread.sleep(50);
 
         downloader.pause();
-        Thread.sleep(100);
+        // Thread.sleep(100);
         
         downloader.cancel();
 

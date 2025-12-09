@@ -327,7 +327,7 @@ class DownloadManagerTest
         // Start and pause a download
         String destination = Paths.get(tempDir, "loaded.mp4").toString();
         Download download = manager.startDownload(LARGE_TEST_URL, destination);
-        Thread.sleep(200);
+        Thread.sleep(50);
         manager.pauseDownload(download.getId());
         
         String downloadId = download.getId();
@@ -694,7 +694,7 @@ class DownloadManagerTest
         assertEquals(DownloadState.DOWNLOADING, download.getState());
         
         // Pause and save
-        Thread.sleep(500);
+        Thread.sleep(50);
         manager.pauseDownload(downloadId);
         assertEquals(DownloadState.PAUSED, download.getState());
         manager.shutdown();
@@ -709,7 +709,7 @@ class DownloadManagerTest
         assertEquals(DownloadState.DOWNLOADING, loaded.getState());
         
         // Pause again
-        Thread.sleep(500);
+        Thread.sleep(100);
         newManager.pauseDownload(downloadId);
         
         // Resume to completion
