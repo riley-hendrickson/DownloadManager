@@ -1,0 +1,15 @@
+.root 
+{
+    -fx-font-family: "Segoe UI";
+    -fx-background-color: #F7F9FC;
+}
+.button 
+{
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+.table-view 
+{
+    -fx-background-color: white;
+    -fx-border-color: #DDD;
+}
