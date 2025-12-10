@@ -220,11 +220,9 @@ public class Download
                 // results.add(completedResult);
                 // create a dummy completable future
                 futureResults.add(CompletableFuture.completedFuture(completedResult));
-                System.out.println("DEBUG: Skipping completed chunk " + i + " - size: " + alreadyDownloaded);
             }
             else
             {
-                System.out.println("DEBUG: Downloading chunk " + i + " - resuming from: " + startByte + alreadyDownloaded);
                 ChunkDownloader curChunk = new ChunkDownloader(tempDirectory, url, startByte, endByte, alreadyDownloaded, 
                                                         i, config, progressTracker);
                 chunks.add(curChunk);
@@ -247,10 +245,6 @@ public class Download
                 try
                 {
                     ChunkResult result = futureResult.get();
-
-                    System.out.println("DEBUG: Collected result for chunk " + result.getChunkIndex() + 
-                       " - bytes: " + result.getBytesDownloaded() + 
-                       " - path: " + result.getTempFilePath());
 
                     // Check if cancelled during collection
                     if(state == DownloadState.CANCELLED)
@@ -298,7 +292,7 @@ public class Download
             catch(InterruptedException e)
             {
                 Thread.currentThread().interrupt();
-                System.err.println("Interrupted while waiting for executor termination");
+                // System.err.println("Interrupted while waiting for executor termination");
             }
             cleanupTempFiles();
             synchronized(this)
@@ -394,7 +388,7 @@ public class Download
         catch(InterruptedException e)
         {
             Thread.currentThread().interrupt();
-            System.err.println("Interrupted while waiting for executor termination");
+            // System.err.println("Interrupted while waiting for executor termination");
         }
         cleanupTempFiles();
     }
@@ -430,7 +424,7 @@ public class Download
         catch(InterruptedException e)
         {
             Thread.currentThread().interrupt();
-            System.err.println("Interrupted while waiting for executor termination");
+            // System.err.println("Interrupted while waiting for executor termination");
         }
     }
 
@@ -470,7 +464,7 @@ public class Download
         }
         catch(IOException e)
         {
-            System.err.println("Failed to clean up temp directory: " + tempDirectory);
+            // System.err.println("Failed to clean up temp directory: " + tempDirectory);
         }
     }
 

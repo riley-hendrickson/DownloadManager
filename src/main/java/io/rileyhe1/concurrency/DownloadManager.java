@@ -224,7 +224,7 @@ public class DownloadManager
         }
         catch(IOException e)
         {
-            System.err.println("Failed to save downloads: " + e.getMessage());
+            // System.err.println("Failed to save downloads: " + e.getMessage());
             // Continue with shutdown even if save fails
         }
         

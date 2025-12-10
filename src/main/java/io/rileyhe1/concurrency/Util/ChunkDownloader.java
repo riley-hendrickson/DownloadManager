@@ -155,11 +155,11 @@ public class ChunkDownloader implements Callable<ChunkResult>
             }
             catch(SocketTimeoutException e)
             {
-                System.out.println("Timeout Expired before connection was established");
+                // System.out.println("Timeout Expired before connection was established");
             }
             catch(IOException e)
             {
-                System.out.println("I/O error occurred while establishing connection");
+                // System.out.println("I/O error occurred while establishing connection");
             }
 
             int responseCode = connection.getResponseCode();
@@ -170,7 +170,7 @@ public class ChunkDownloader implements Callable<ChunkResult>
             //  Open temp file and input stream from http url connection in try with resources block to ensure they're 
             //  closed when we're done or when we encounter an exception
             try (InputStream inputStream = connection.getInputStream();
-                 FileOutputStream outputStream = new FileOutputStream(tempFilePath))
+                 FileOutputStream outputStream = new FileOutputStream(tempFilePath, true))
             {
                 // 3. Download loop with pause/cancel checks implemented later
                 byte[] buffer = new byte[config.getBufferSize()];
