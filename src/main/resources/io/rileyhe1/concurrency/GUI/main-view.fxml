@@ -17,7 +17,21 @@
 
 <BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="window-root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="io.rileyhe1.concurrency.GUI.MainController">
    <center>
-      <TableView fixedCellSize="34.0" prefHeight="295.0" prefWidth="1121.0" BorderPane.alignment="CENTER">
+      <TableView fixedCellSize="34.0" prefHeight="295.0" prefWidth="1121.0" stylesheets="@style.css" BorderPane.alignment="CENTER">
+      <placeholder>
+      <VBox alignment="CENTER" spacing="10">
+         <Label styleClass="empty-state-title" text="No Downloads Yet">
+            <font>
+               <Font name="Segoe UI Semibold" size="18.0" />
+            </font>
+         </Label>
+         <Label styleClass="empty-state-subtitle" text="Click 'Add New Download' to get started">
+            <font>
+               <Font size="13.0" />
+            </font>
+         </Label>
+      </VBox>
+   </placeholder>
         <columns>
           <TableColumn prefWidth="75.0" text="Destination" />
           <TableColumn prefWidth="75.0" text="URL" />
@@ -54,22 +68,23 @@
                <children>
                   <Label lineSpacing="10.0" style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;" text="Riley's Concurrent Download Manager" HBox.hgrow="ALWAYS" />
                   <Pane prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS" />
-                  <Button fx:id="minimizeButton" mnemonicParsing="false" onAction="#handleMinimize" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14; -fx-padding: 2 8 2 8;" text="—" />
-                  <Button fx:id="maximizeButton" mnemonicParsing="false" onAction="#handleMaximize" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18; -fx-padding: 2 8 2 8;" text="⬜" />
-                  <Button fx:id="closeButton" mnemonicParsing="false" onAction="#handleClose" style="-fx-background-color: transparent; -fx-text-fill: E74C3C; -fx-font-size: 20; -fx-padding: 2 8 2 8;" text="✖" />
+                  <Button fx:id="minimizeButton" mnemonicParsing="false" onAction="#handleMinimize" styleClass="title-button" text="—" />
+                  <Button fx:id="maximizeButton" mnemonicParsing="false" onAction="#handleMaximize" styleClass="title-button" text="⬜" />
+                  <Button fx:id="closeButton" mnemonicParsing="false" onAction="#handleClose" styleClass="button-close" text="✖" />
                </children>
             </HBox>
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
-                <Button mnemonicParsing="false" style="-fx-background-radius: 8; -fx-text-fill: white; -fx-padding: 6 12 6 12; -fx-background-color: grey;" text="Add New Download" />
-                  <Button mnemonicParsing="false" style="-fx-background-radius: 8; -fx-background-color: green; -fx-text-fill: white; -fx-padding: 6 12 6 12;" text="Start All" />
-                  <Button mnemonicParsing="false" style="-fx-background-color: blue; -fx-text-fill: white; -fx-padding: 6 12 6 12; -fx-background-radius: 8;" text="Pause All" />
+                <Button mnemonicParsing="false" styleClass="toolbar-button-primary" text="➕ Add New Download" />
+                  <Button mnemonicParsing="false" styleClass="toolbar-button-success" text="▶ Start All" />
+                  <Button mnemonicParsing="false" styleClass="toolbar-button-info" text="⏸ Pause All" />
+                  <Button mnemonicParsing="false" styleClass="toolbar-button-cancel" text="Cancel All" />
                   <Separator prefWidth="200.0">
                      <padding>
                         <Insets left="600.0" />
                      </padding>
                   </Separator>
-                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" text="Settings" textAlignment="CENTER" />
+                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" styleClass="toolbar-button-primary" text="Settings" textAlignment="CENTER" />
               </items>
             </ToolBar>
             <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
