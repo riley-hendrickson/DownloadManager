@@ -14,6 +14,7 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.control.Tooltip?>
 
 <BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="window-root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="io.rileyhe1.concurrency.GUI.MainController">
    <center>
@@ -45,15 +46,24 @@
       </TableView>
    </center>
    <bottom>
-      <HBox prefHeight="100.0" prefWidth="200.0" style="-fx-background-color: #EEE; -fx-padding: 6 10 6 10;" BorderPane.alignment="CENTER">
+      <HBox prefHeight="32.0" prefWidth="200.0" alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #F8F9FA; -fx-padding: 8 12 8 12; -fx-border-color: transparent #E0E0E0 transparent transparent; -fx-border-width: 1 0 0 0;" BorderPane.alignment="CENTER">
          <children>
-            <Label text="Status: Idle" textFill="#555555">
+            <Label fx:id="statusLabel" text="Ready" textFill="#555555">
                <font>
-                  <Font size="13.0" />
+                  <Font size="12.0" />
                </font>
-               <padding>
-                  <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
-               </padding>
+            </Label>
+            <Pane HBox.hgrow="ALWAYS" />
+            <Label fx:id="activeDownloadsLabel" text="Active Downloads: 0" textFill="#6C757D">
+               <font>
+                  <Font size="12.0" />
+               </font>
+            </Label>
+            <Separator orientation="VERTICAL" />
+            <Label fx:id="totalSpeedLabel" text="Speed: 0 KB/s" textFill="#6C757D">
+               <font>
+                  <Font size="12.0" />
+               </font>
             </Label>
          </children>
       </HBox>
@@ -75,15 +85,31 @@
             </HBox>
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
-                <Button mnemonicParsing="false" styleClass="toolbar-button-primary" text="➕ Add New Download" />
-                  <Button mnemonicParsing="false" styleClass="toolbar-button-success" text="▶ Start All" />
-                  <Button mnemonicParsing="false" styleClass="toolbar-button-info" text="⏸ Pause All" />
-                  <Button mnemonicParsing="false" styleClass="toolbar-button-cancel" text="Cancel All" />
-                  <Separator prefWidth="200.0">
-                     <padding>
-                        <Insets left="600.0" />
-                     </padding>
-                  </Separator>
+                <Button mnemonicParsing="false" styleClass="toolbar-button-primary" text="➕ Add New Download">
+                <tooltip>
+                     <Tooltip text="Add a new file to download" showDelay="500ms" />
+               </tooltip>
+                </Button>
+
+                <Button mnemonicParsing="false" styleClass="toolbar-button-success" text="▶ Resume All">
+                <tooltip>
+                     <Tooltip text="Resume downloading all currently paused downloads" showDelay="500ms" />
+               </tooltip>
+                </Button>
+
+                <Button mnemonicParsing="false" styleClass="toolbar-button-info" text="⏸ Pause All">
+                <tooltip>
+                     <Tooltip text="Pause all active downloads" showDelay="500ms" />
+               </tooltip>
+                </Button>
+
+                <Button mnemonicParsing="false" styleClass="toolbar-button-cancel" text="✖ Cancel All">
+                <tooltip>
+                     <Tooltip text="Cancel all active/paused downloads" showDelay="500ms" />
+               </tooltip>
+                </Button>
+
+                  <Pane  HBox.hgrow="ALWAYS" />
                   <Button alignment="CENTER_RIGHT" mnemonicParsing="false" styleClass="toolbar-button-primary" text="Settings" textAlignment="CENTER" />
               </items>
             </ToolBar>

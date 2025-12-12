@@ -72,6 +72,13 @@
     -fx-scale-y: 0.95;
 }
 
+.tool-bar
+{
+    -fx-border-color: transparent transparent #E0E0E0 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-spacing: 8;
+}
+
 /* Toolbar Button Styles */
 .toolbar-button-primary
 {
@@ -343,9 +350,38 @@
     -fx-text-fill: white;
 }
 
+/* styling to progress bars */
+.progress-bar
+{
+    -fx-background-color: #E9ECEF;
+    -fx-background-radius: 10;
+    -fx-padding: 0;
+}
+
+.progress-bar > .track
+{
+    -fx-background-color: #E9ECEF;
+    -fx-background-radius: 10;
+    -fx-background-insets: 0;
+}
+
+.progress-bar > .bar
+{
+    -fx-background-color: linear-gradient(to bottom, #28A745, #218838);
+    -fx-background-radius: 10;
+    -fx-background-insets: 0;
+    -fx-padding: 4;
+}
+
+.progress-bar:indeterminate > .bar
+{
+    -fx-background-color: linear-gradient(to bottom, #007BFF, #0056B3);
+}
+
 /* Window Root */
 .window-root
 {
     -fx-font-family: "Segoe UI";
     -fx-background-color: #F7F9FC;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 15, 0, 0, 0);
 }
