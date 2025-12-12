@@ -1,3 +1,4 @@
 # Maven build output
 target/
 .vscode
+downloads.json
