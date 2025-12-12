@@ -17,58 +17,9 @@
 <?import javafx.scene.control.Tooltip?>
 
 <BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="window-root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="io.rileyhe1.concurrency.GUI.MainController">
-   <center>
-      <TableView fixedCellSize="34.0" prefHeight="295.0" prefWidth="1121.0" stylesheets="@style.css" BorderPane.alignment="CENTER">
-      <placeholder>
-      <VBox alignment="CENTER" spacing="10">
-         <Label styleClass="empty-state-title" text="No Downloads Yet">
-            <font>
-               <Font name="Segoe UI Semibold" size="18.0" />
-            </font>
-         </Label>
-         <Label styleClass="empty-state-subtitle" text="Click 'Add New Download' to get started">
-            <font>
-               <Font size="13.0" />
-            </font>
-         </Label>
-      </VBox>
-   </placeholder>
-        <columns>
-          <TableColumn prefWidth="75.0" text="Destination" />
-          <TableColumn prefWidth="75.0" text="URL" />
-            <TableColumn prefWidth="75.0" text="Status" />
-            <TableColumn prefWidth="75.0" text="Progress" />
-            <TableColumn prefWidth="75.0" text="Actions" />
-        </columns>
-         <columnResizePolicy>
-            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-         </columnResizePolicy>
-      </TableView>
-   </center>
-   <bottom>
-      <HBox prefHeight="32.0" prefWidth="200.0" alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #F8F9FA; -fx-padding: 8 12 8 12; -fx-border-color: transparent #E0E0E0 transparent transparent; -fx-border-width: 1 0 0 0;" BorderPane.alignment="CENTER">
-         <children>
-            <Label fx:id="statusLabel" text="Ready" textFill="#555555">
-               <font>
-                  <Font size="12.0" />
-               </font>
-            </Label>
-            <Pane HBox.hgrow="ALWAYS" />
-            <Label fx:id="activeDownloadsLabel" text="Active Downloads: 0" textFill="#6C757D">
-               <font>
-                  <Font size="12.0" />
-               </font>
-            </Label>
-            <Separator orientation="VERTICAL" />
-            <Label fx:id="totalSpeedLabel" text="Speed: 0 KB/s" textFill="#6C757D">
-               <font>
-                  <Font size="12.0" />
-               </font>
-            </Label>
-         </children>
-      </HBox>
-   </bottom>
+   
    <top>
+   <!-- TITLE BAR -->
       <VBox prefHeight="121.0" prefWidth="1125.0" BorderPane.alignment="CENTER">
          <children>
             <HBox alignment="CENTER_LEFT" onMouseDragged="#handleTitleBarDragged" onMousePressed="#handleTitleBarPressed" prefHeight="100.0" prefWidth="200.0" spacing="10.0" style="-fx-background-color: #20232A;">
@@ -83,36 +34,38 @@
                   <Button fx:id="closeButton" mnemonicParsing="false" onAction="#handleClose" styleClass="button-close" text="✖" />
                </children>
             </HBox>
+            <!-- TOOL BAR -->
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
-                <Button mnemonicParsing="false" styleClass="toolbar-button-primary" text="➕ Add New Download">
+                <Button mnemonicParsing="false" styleClass="toolbar-button-primary" text="➕ Add New Download" onAction="#handleAddDownload">
                 <tooltip>
                      <Tooltip text="Add a new file to download" showDelay="500ms" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" styleClass="toolbar-button-success" text="▶ Resume All">
+                <Button mnemonicParsing="false" styleClass="toolbar-button-success" text="▶ Resume All" onAction="#handleResumeAll">
                 <tooltip>
                      <Tooltip text="Resume downloading all currently paused downloads" showDelay="500ms" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" styleClass="toolbar-button-info" text="⏸ Pause All">
+                <Button mnemonicParsing="false" styleClass="toolbar-button-info" text="⏸ Pause All" onAction="#handlePauseAll">
                 <tooltip>
                      <Tooltip text="Pause all active downloads" showDelay="500ms" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" styleClass="toolbar-button-cancel" text="✖ Cancel All">
+                <Button mnemonicParsing="false" styleClass="toolbar-button-cancel" text="✖ Cancel All" onAction="#handleCancelAll">
                 <tooltip>
                      <Tooltip text="Cancel all active/paused downloads" showDelay="500ms" />
                </tooltip>
                 </Button>
 
                   <Pane  HBox.hgrow="ALWAYS" />
-                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" styleClass="toolbar-button-primary" text="Settings" textAlignment="CENTER" />
+                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" styleClass="toolbar-button-primary" text="Settings" onAction="#handleOpenSettings" textAlignment="CENTER" />
               </items>
             </ToolBar>
+            <!-- SEARCH BOX -->
             <HBox alignment="CENTER_LEFT" prefHeight="100.0" prefWidth="200.0" spacing="10.0">
                <children>
                   <TextField fx:id="searchBox" promptText="Search Downloads..." HBox.hgrow="ALWAYS">
@@ -144,4 +97,59 @@
          </children>
       </VBox>
    </top>
+
+   <center>
+   <!-- DOWNLOAD LIST -->
+      <TableView fixedCellSize="34.0" prefHeight="295.0" prefWidth="1121.0" stylesheets="@style.css" BorderPane.alignment="CENTER">
+      <placeholder>
+      <VBox alignment="CENTER" spacing="10">
+         <Label styleClass="empty-state-title" text="No Downloads Yet">
+            <font>
+               <Font name="Segoe UI Semibold" size="18.0" />
+            </font>
+         </Label>
+         <Label styleClass="empty-state-subtitle" text="Click 'Add New Download' to get started">
+            <font>
+               <Font size="13.0" />
+            </font>
+         </Label>
+      </VBox>
+   </placeholder>
+        <columns>
+          <TableColumn prefWidth="75.0" text="Destination" />
+          <TableColumn prefWidth="75.0" text="URL" />
+            <TableColumn prefWidth="75.0" text="Status" />
+            <TableColumn prefWidth="75.0" text="Progress" />
+            <TableColumn prefWidth="75.0" text="Actions" />
+        </columns>
+         <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         </columnResizePolicy>
+      </TableView>
+   </center>
+
+   <bottom>
+   <!-- STATUS INFO SECTION -->
+      <HBox prefHeight="32.0" prefWidth="200.0" alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #F8F9FA; -fx-padding: 8 12 8 12; -fx-border-color: transparent #E0E0E0 transparent transparent; -fx-border-width: 1 0 0 0;" BorderPane.alignment="CENTER">
+         <children>
+            <Label fx:id="statusLabel" text="Ready" textFill="#555555">
+               <font>
+                  <Font size="12.0" />
+               </font>
+            </Label>
+            <Pane HBox.hgrow="ALWAYS" />
+            <Label fx:id="activeDownloadsLabel" text="Active Downloads: 0" textFill="#6C757D">
+               <font>
+                  <Font size="12.0" />
+               </font>
+            </Label>
+            <Separator orientation="VERTICAL" />
+            <Label fx:id="totalSpeedLabel" text="Speed: 0 KB/s" textFill="#6C757D">
+               <font>
+                  <Font size="12.0" />
+               </font>
+            </Label>
+         </children>
+      </HBox>
+   </bottom>
 </BorderPane>

@@ -26,7 +26,8 @@ public class MainController
     private Button closeButton;
     @FXML
     private TextField searchBox;
-    // fields for resizing, moving the window, and snapping the window to the top of the screen to restore full screen
+
+    // fields for resizing, moving the window, and snapping the window to the top of the screen to restore full screen // 
     private static final int RESIZE_MARGIN = 5;
 
     private boolean resizing = false;
@@ -42,7 +43,7 @@ public class MainController
     private double startWidth;
     private double startHeight;
 
-    // For window dragging
+    // For window dragging // 
     private double xOffset = 0;
     private double yOffset = 0;
 
@@ -53,9 +54,10 @@ public class MainController
     private void initialize()
     {
         setupResizeHandlers();
+        loadPersistedDownloads();
     }
 
-    // ----- Button handlers -----
+    // ----- Button handlers ----- //
 
     private void setupResizeHandlers()
     {
@@ -63,6 +65,8 @@ public class MainController
         root.setOnMousePressed(this::handleMousePressedForResize);
         root.setOnMouseDragged(this::handleMouseDraggedForResize);
     }
+
+    // Methods for handling moving and resizing of the window //
 
     private void handleMouseMovedForResize(MouseEvent event)
     {
@@ -158,6 +162,8 @@ public class MainController
         }
     }
 
+    // Methods for handling title bar's minimize, maximize, and close buttons // 
+
     @FXML
     private void handleMinimize()
     {
@@ -199,11 +205,12 @@ public class MainController
     @FXML
     private void handleClose()
     {
+        shutdown();
         Stage stage = (Stage) closeButton.getScene().getWindow();
         stage.close();
     }
 
-    // ----- Dragging handlers -----
+    // Methods for handling moving the window, and snapping in and out of fullscreen depending on window position // 
 
     @FXML
     private void handleTitleBarPressed(MouseEvent event)
@@ -231,5 +238,69 @@ public class MainController
         }
         // maximize when the user drags the window to the top of the screen
         if(!isMaximized && event.getScreenY() - yOffset < 3) handleMaximize();
+    }
+
+    // Toolbar button method handlers (add download, pause all, resume all, cancel all, open settings) // 
+
+    @FXML
+    private void handleAddDownload(MouseEvent event)
+    {
+        System.out.println("Adding download");
+    }
+
+    @FXML
+    private void handleResumeAll(MouseEvent event)
+    {
+        System.out.println("Resuming all downloads");
+    }
+
+    @FXML
+    private void handlePauseAll(MouseEvent event)
+    {
+        System.out.println("Pausing all downloads");
+    }
+
+    @FXML
+    private void handleCancelAll(MouseEvent event)
+    {
+        System.out.println("Cancelling all downloads");
+    }
+
+    @FXML
+    private void handleOpenSettings(MouseEvent event)
+    {
+        System.out.println("Opening settings");
+    }
+
+    // Methods for Pause, Resume, Cancel of selected download //
+    @FXML
+    private void handlePause(MouseEvent event)
+    {
+        System.out.println("Pausing download");
+    }
+
+    @FXML
+    private void handleResume(MouseEvent event)
+    {
+        System.out.println("Resuming download");
+    }
+
+    @FXML
+    private void handleCancel(MouseEvent event)
+    {
+        System.out.println("Cancelling download");
+    }
+
+    // Method to load persisted downloads on startup //
+
+    private void loadPersistedDownloads()
+    {
+        
+    }
+
+    // Shutdown Method called when user closes GUI window //
+    private void shutdown()
+    {
+        System.out.println("Shutting manager down");
     }
 }
