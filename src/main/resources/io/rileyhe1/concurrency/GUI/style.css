@@ -13,3 +13,17 @@
     -fx-background-color: white;
     -fx-border-color: #DDD;
 }
+/* basic window style */
+.window-root
+{
+    -fx-backgroundcolor: #F5F5F5;
+}
+/* window style when not maximized */
+.window-root.windowed 
+{
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 18, 0.1, 0, 4);
+    -fx-border-color: #D0D0D0;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
