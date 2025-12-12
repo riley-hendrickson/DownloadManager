@@ -1,8 +1,23 @@
 package io.rileyhe1.concurrency.GUI;
 
+import java.io.IOException;
+import java.util.Timer;
+
+import io.rileyhe1.concurrency.DownloadManager;
+import io.rileyhe1.concurrency.Data.DownloadConfig;
+import io.rileyhe1.concurrency.Data.DownloadException;
+import io.rileyhe1.concurrency.Util.Download;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -10,22 +25,33 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 
 public class MainController
 {
-    @FXML
-    private BorderPane root;
-    @FXML
-    private HBox titleBar;
-    @FXML
-    private Button minimizeButton;
-    @FXML
-    private Button maximizeButton;
-    @FXML
-    private Button closeButton;
-    @FXML
-    private TextField searchBox;
+    private Stage stage; 
+    private DownloadManager downloadManager;
+    private ObservableList<DownloadRow> downloadRows;
+    private Timer updateTimer;
+
+    @FXML private BorderPane root;
+    @FXML private HBox titleBar;
+
+    @FXML private Button minimizeButton;
+    @FXML private Button maximizeButton;
+    @FXML private Button closeButton;
+
+    @FXML private TableView<DownloadRow> downloadsTable;
+    @FXML private TableColumn<DownloadRow, String> destinationColumn;
+    @FXML private TableColumn<DownloadRow, String> urlColumn;
+    @FXML private TableColumn<DownloadRow, String> statusColumn;
+    @FXML private TableColumn<DownloadRow, Double> progressColumn;
+    @FXML private TableColumn<DownloadRow, Void> actionsColumn;
+    
+    @FXML private TextField searchBox;
+    @FXML private Label statusLabel;
+    @FXML private Label activeDownloadsLabel;
+    @FXML private Label totalSpeedLabel;
+
 
     // fields for resizing, moving the window, and snapping the window to the top of the screen to restore full screen // 
     private static final int RESIZE_MARGIN = 5;
@@ -53,24 +79,72 @@ public class MainController
     @FXML
     private void initialize()
     {
-        setupResizeHandlers();
-        loadPersistedDownloads();
+        try
+        {
+            // initialize download manager, later add a prompt here asking if the user would like to edit default config settings before any downloads begin
+            DownloadConfig config = DownloadConfig.builder()
+                .chunkSizeMB(5)
+                .timeoutsInSeconds(30)
+                .maxRetries(3)
+                .retryDelayMS(2000)
+                .bufferSize(8192)
+                .minSizeForChunking(1024 * 1024)
+                .build();
+            
+            downloadManager = new DownloadManager(config);
+
+            // initialize table data
+            downloadRows = FXCollections.observableArrayList();
+            downloadsTable.setItems(downloadRows);
+
+            // Setup table columns
+            setupTableColumns();
+
+            // load any persisted downloads
+            loadPersistedDownloads();
+
+            // start ui update timer
+            startUpdateTimer();
+
+            updateStatusBar();
+        }
+        catch(IOException | DownloadException e)
+        {
+            showError("Initialization Error", "Failed to initialize download manager");
+        }
     }
 
-    // ----- Button handlers ----- //
-
-    private void setupResizeHandlers()
+    public void setStage(Stage stage)
     {
-        root.setOnMouseMoved(this::handleMouseMovedForResize);
-        root.setOnMousePressed(this::handleMousePressedForResize);
-        root.setOnMouseDragged(this::handleMouseDraggedForResize);
+        this.stage = stage;
+    }
+
+    private void setupTableColumns()
+    {
+        // TODO: implement
+    }
+
+    // Method to load persisted downloads on startup //
+
+    private void loadPersistedDownloads()
+    {
+        // TODO: implement
+    }
+
+    private void startUpdateTimer()
+    {
+        // TODO: implement
+    }
+
+    private void updateStatusBar()
+    {
+        // TODO: implement
     }
 
     // Methods for handling moving and resizing of the window //
 
-    private void handleMouseMovedForResize(MouseEvent event)
+    @FXML private void handleMouseMovedForResize(MouseEvent event)
     {
-        Stage stage = (Stage) root.getScene().getWindow();
         double mouseX = event.getX();
         double mouseY = event.getY();
         double width = stage.getWidth();
@@ -112,10 +186,8 @@ public class MainController
         root.setCursor(cursor);
     }
 
-    private void handleMousePressedForResize(MouseEvent event)
+    @FXML private void handleMousePressedForResize(MouseEvent event)
     {
-        Stage stage = (Stage) root.getScene().getWindow();
-
         startX = stage.getX();
         startY = stage.getY();
         startWidth = stage.getWidth();
@@ -126,14 +198,12 @@ public class MainController
         resizing = root.getCursor() != Cursor.DEFAULT;
     }
 
-    private void handleMouseDraggedForResize(MouseEvent event)
+    @FXML private void handleMouseDraggedForResize(MouseEvent event)
     {
         if (!resizing)
         {
             return;
         }
-
-        Stage stage = (Stage) root.getScene().getWindow();
 
         double deltaX = event.getScreenX() - startScreenX;
         double deltaY = event.getScreenY() - startScreenY;
@@ -162,19 +232,98 @@ public class MainController
         }
     }
 
+
+    // Methods for handling moving the window, and snapping in and out of fullscreen depending on window position // 
+
+    @FXML
+    private void handleTitleBarPressed(MouseEvent event)
+    {
+        xOffset = event.getScreenX() - stage.getX();
+        yOffset = event.getScreenY() - stage.getY();
+    }
+
+    @FXML
+    private void handleTitleBarDragged(MouseEvent event)
+    {
+        // only move the window if the user is attempting to move it within the visual bounds
+        if(event.getScreenX() - xOffset > bounds.getMinX() && event.getScreenX() - xOffset < bounds.getMaxX()) stage.setX(event.getScreenX() - xOffset);
+        if(event.getScreenY() - yOffset > bounds.getMinY() && event.getScreenY() - yOffset < bounds.getMaxY()) stage.setY(event.getScreenY() - yOffset);
+        // resize the window if the window is maximized and the user is trying to move the window
+        if(isMaximized && event.getScreenY() - yOffset < bounds.getMaxY() || event.getScreenX() - xOffset < bounds.getMaxX())
+        {
+            isMaximized = false;
+            double targetWidth  = bounds.getWidth()  * 0.75;    // 75% of screen width
+            double targetHeight = bounds.getHeight() * 0.75;    // 75% of screen height
+            stage.setWidth(targetWidth);
+            stage.setHeight(targetHeight);
+        }
+        // maximize when the user drags the window to the top of the screen
+        if(!isMaximized && event.getScreenY() - yOffset < 3) handleMaximize();
+    }
+
+    // Toolbar button method handlers (add download, pause all, resume all, cancel all, open settings) // 
+
+    @FXML
+    private void handleAddDownload(ActionEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleResumeAll(ActionEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handlePauseAll(ActionEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleCancelAll(ActionEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleOpenSettings(ActionEvent event)
+    {
+        // TODO: implement
+    }
+
+    // Methods for Pause, Resume, Cancel of selected download //
+    @FXML
+    private void handlePause(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleResume(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleCancel(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+
     // Methods for handling title bar's minimize, maximize, and close buttons // 
 
     @FXML
     private void handleMinimize()
     {
-        Stage stage = (Stage) minimizeButton.getScene().getWindow();
         stage.setIconified(true);
     }
 
     @FXML
     private void handleMaximize()
     {
-        Stage stage = (Stage) root.getScene().getWindow();
         if(!isMaximized)
         {
             isMaximized = true;
@@ -205,102 +354,46 @@ public class MainController
     @FXML
     private void handleClose()
     {
-        shutdown();
-        Stage stage = (Stage) closeButton.getScene().getWindow();
-        stage.close();
+        if(downloadManager != null) downloadManager.shutdown();
+        if(updateTimer != null) updateTimer.cancel();
+        Platform.exit();
+        // stage.close();
     }
 
-    // Methods for handling moving the window, and snapping in and out of fullscreen depending on window position // 
-
-    @FXML
-    private void handleTitleBarPressed(MouseEvent event)
+    private void showError(String title, String message)
     {
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-        xOffset = event.getScreenX() - stage.getX();
-        yOffset = event.getScreenY() - stage.getY();
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
-    @FXML
-    private void handleTitleBarDragged(MouseEvent event)
+    // inner classes //
+    public static class DownloadRow
     {
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-        // only move the window if the user is attempting to move it within the visual bounds
-        if(event.getScreenX() - xOffset > bounds.getMinX() && event.getScreenX() - xOffset < bounds.getMaxX()) stage.setX(event.getScreenX() - xOffset);
-        if(event.getScreenY() - yOffset > bounds.getMinY() && event.getScreenY() - yOffset < bounds.getMaxY()) stage.setY(event.getScreenY() - yOffset);
-        // resize the window if the window is maximized and the user is trying to move the window
-        if(isMaximized && event.getScreenY() - yOffset < bounds.getMaxY() || event.getScreenX() - xOffset < bounds.getMaxX())
-        {
-            isMaximized = false;
-            double targetWidth  = bounds.getWidth()  * 0.75;    // 75% of screen width
-            double targetHeight = bounds.getHeight() * 0.75;    // 75% of screen height
-            stage.setWidth(targetWidth);
-            stage.setHeight(targetHeight);
-        }
-        // maximize when the user drags the window to the top of the screen
-        if(!isMaximized && event.getScreenY() - yOffset < 3) handleMaximize();
-    }
-
-    // Toolbar button method handlers (add download, pause all, resume all, cancel all, open settings) // 
-
-    @FXML
-    private void handleAddDownload(MouseEvent event)
-    {
-        System.out.println("Adding download");
-    }
-
-    @FXML
-    private void handleResumeAll(MouseEvent event)
-    {
-        System.out.println("Resuming all downloads");
-    }
-
-    @FXML
-    private void handlePauseAll(MouseEvent event)
-    {
-        System.out.println("Pausing all downloads");
-    }
-
-    @FXML
-    private void handleCancelAll(MouseEvent event)
-    {
-        System.out.println("Cancelling all downloads");
-    }
-
-    @FXML
-    private void handleOpenSettings(MouseEvent event)
-    {
-        System.out.println("Opening settings");
-    }
-
-    // Methods for Pause, Resume, Cancel of selected download //
-    @FXML
-    private void handlePause(MouseEvent event)
-    {
-        System.out.println("Pausing download");
-    }
-
-    @FXML
-    private void handleResume(MouseEvent event)
-    {
-        System.out.println("Resuming download");
-    }
-
-    @FXML
-    private void handleCancel(MouseEvent event)
-    {
-        System.out.println("Cancelling download");
-    }
-
-    // Method to load persisted downloads on startup //
-
-    private void loadPersistedDownloads()
-    {
+        private final Download download;
         
+        public DownloadRow(Download download)
+        {
+            this.download = download;
+        }
+        
+        public Download getDownload()
+        {
+            return download;
+        }
     }
-
-    // Shutdown Method called when user closes GUI window //
-    private void shutdown()
+    
+    private static class DownloadInfo
     {
-        System.out.println("Shutting manager down");
+        final String url;
+        final String destination;
+        
+        DownloadInfo(String url, String destination)
+        {
+            this.url = url;
+            this.destination = destination;
+        }
     }
 }

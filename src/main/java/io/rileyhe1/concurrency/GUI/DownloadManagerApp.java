@@ -20,6 +20,10 @@ public class DownloadManagerApp extends Application
         Parent root = loader.load();
         Scene scene = new Scene(root);
 
+        // Get controller and pass the stage reference
+        MainController controller = loader.getController();
+        controller.setStage(stage);
+
         stage.setTitle("Riley's Concurrent Download Manager");
         stage.setScene(scene);
         // remove the OS title bar so we can create our own better looking one

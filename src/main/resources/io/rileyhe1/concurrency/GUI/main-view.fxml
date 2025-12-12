@@ -9,14 +9,14 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
-<?import javafx.scene.control.Tooltip?>
 
-<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="window-root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="io.rileyhe1.concurrency.GUI.MainController">
+<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" onMouseDragged="#handleMouseDraggedForResize" onMouseMoved="#handleMouseMovedForResize" onMousePressed="#handleMousePressedForResize" styleClass="window-root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="io.rileyhe1.concurrency.GUI.MainController">
    
    <top>
    <!-- TITLE BAR -->
@@ -37,32 +37,32 @@
             <!-- TOOL BAR -->
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
-                <Button mnemonicParsing="false" styleClass="toolbar-button-primary" text="➕ Add New Download" onAction="#handleAddDownload">
+                <Button mnemonicParsing="false" onAction="#handleAddDownload" styleClass="toolbar-button-primary" text="➕ Add New Download">
                 <tooltip>
-                     <Tooltip text="Add a new file to download" showDelay="500ms" />
+                     <Tooltip showDelay="500ms" text="Add a new file to download" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" styleClass="toolbar-button-success" text="▶ Resume All" onAction="#handleResumeAll">
+                <Button mnemonicParsing="false" onAction="#handleResumeAll" styleClass="toolbar-button-success" text="▶ Resume All">
                 <tooltip>
-                     <Tooltip text="Resume downloading all currently paused downloads" showDelay="500ms" />
+                     <Tooltip showDelay="500ms" text="Resume downloading all currently paused downloads" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" styleClass="toolbar-button-info" text="⏸ Pause All" onAction="#handlePauseAll">
+                <Button mnemonicParsing="false" onAction="#handlePauseAll" styleClass="toolbar-button-info" text="⏸ Pause All">
                 <tooltip>
-                     <Tooltip text="Pause all active downloads" showDelay="500ms" />
+                     <Tooltip showDelay="500ms" text="Pause all active downloads" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" styleClass="toolbar-button-cancel" text="✖ Cancel All" onAction="#handleCancelAll">
+                <Button mnemonicParsing="false" onAction="#handleCancelAll" styleClass="toolbar-button-cancel" text="✖ Cancel All">
                 <tooltip>
-                     <Tooltip text="Cancel all active/paused downloads" showDelay="500ms" />
+                     <Tooltip showDelay="500ms" text="Cancel all active/paused downloads" />
                </tooltip>
                 </Button>
 
-                  <Pane  HBox.hgrow="ALWAYS" />
-                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" styleClass="toolbar-button-primary" text="Settings" onAction="#handleOpenSettings" textAlignment="CENTER" />
+                  <Pane HBox.hgrow="ALWAYS" />
+                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" onAction="#handleOpenSettings" styleClass="toolbar-button-primary" text="Settings" textAlignment="CENTER" />
               </items>
             </ToolBar>
             <!-- SEARCH BOX -->
@@ -100,7 +100,7 @@
 
    <center>
    <!-- DOWNLOAD LIST -->
-      <TableView fixedCellSize="34.0" prefHeight="295.0" prefWidth="1121.0" stylesheets="@style.css" BorderPane.alignment="CENTER">
+      <TableView fx:id="downloadsTable" fixedCellSize="34.0" prefHeight="295.0" prefWidth="1121.0" stylesheets="@style.css" BorderPane.alignment="CENTER">
       <placeholder>
       <VBox alignment="CENTER" spacing="10">
          <Label styleClass="empty-state-title" text="No Downloads Yet">
@@ -116,11 +116,11 @@
       </VBox>
    </placeholder>
         <columns>
-          <TableColumn prefWidth="75.0" text="Destination" />
-          <TableColumn prefWidth="75.0" text="URL" />
-            <TableColumn prefWidth="75.0" text="Status" />
-            <TableColumn prefWidth="75.0" text="Progress" />
-            <TableColumn prefWidth="75.0" text="Actions" />
+         <TableColumn fx:id="destinationColumn" prefWidth="200.0" text="Destination" />
+         <TableColumn fx:id="urlColumn" prefWidth="300.0" text="URL" />
+         <TableColumn fx:id="statusColumn" prefWidth="100.0" text="Status" />
+         <TableColumn fx:id="progressColumn" prefWidth="150.0" text="Progress" />
+         <TableColumn fx:id="actionsColumn" prefWidth="100.0" text="Actions" />
         </columns>
          <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
@@ -130,7 +130,7 @@
 
    <bottom>
    <!-- STATUS INFO SECTION -->
-      <HBox prefHeight="32.0" prefWidth="200.0" alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #F8F9FA; -fx-padding: 8 12 8 12; -fx-border-color: transparent #E0E0E0 transparent transparent; -fx-border-width: 1 0 0 0;" BorderPane.alignment="CENTER">
+      <HBox alignment="CENTER_LEFT" prefHeight="32.0" prefWidth="200.0" spacing="10" style="-fx-background-color: #F8F9FA; -fx-padding: 8 12 8 12; -fx-border-color: transparent #E0E0E0 transparent transparent; -fx-border-width: 1 0 0 0;" BorderPane.alignment="CENTER">
          <children>
             <Label fx:id="statusLabel" text="Ready" textFill="#555555">
                <font>
