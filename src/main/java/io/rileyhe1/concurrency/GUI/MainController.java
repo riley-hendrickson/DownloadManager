@@ -1,7 +1,9 @@
 package io.rileyhe1.concurrency.GUI;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Timer;
+import java.util.TimerTask;
 
 import io.rileyhe1.concurrency.DownloadManager;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
@@ -20,7 +22,6 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.input.MouseEvent;
@@ -34,7 +35,6 @@ public class MainController
     private Timer updateTimer;
 
     @FXML private BorderPane root;
-    @FXML private HBox titleBar;
 
     @FXML private Button minimizeButton;
     @FXML private Button maximizeButton;
@@ -81,6 +81,9 @@ public class MainController
     {
         try
         {
+            // Setup table columns
+            setupTableColumns();
+
             // initialize download manager, later add a prompt here asking if the user would like to edit default config settings before any downloads begin
             DownloadConfig config = DownloadConfig.builder()
                 .chunkSizeMB(5)
@@ -97,16 +100,11 @@ public class MainController
             downloadRows = FXCollections.observableArrayList();
             downloadsTable.setItems(downloadRows);
 
-            // Setup table columns
-            setupTableColumns();
-
             // load any persisted downloads
             loadPersistedDownloads();
 
             // start ui update timer
             startUpdateTimer();
-
-            updateStatusBar();
         }
         catch(IOException | DownloadException e)
         {
@@ -128,17 +126,76 @@ public class MainController
 
     private void loadPersistedDownloads()
     {
-        // TODO: implement
+        try
+        {
+            List<Download> downloads = downloadManager.getAllDownloads();
+            for(Download download : downloads)
+            {
+                DownloadRow row = new DownloadRow(download);
+                downloadRows.add(row);
+            }
+
+            if(!downloads.isEmpty())
+            {
+                statusLabel.setText("Loaded " + downloads.size() + " saved download(s)");
+            }
+        }
+        catch(Exception e)
+        {
+            showError("Load Error", "Failed to load persisted downloads: " + e.getMessage());
+        }
     }
 
     private void startUpdateTimer()
     {
-        // TODO: implement
+        updateTimer = new Timer(true);
+
+        updateTimer.scheduleAtFixedRate(new TimerTask() 
+        {
+            @Override
+            public void run()
+            {
+                Platform.runLater(() -> 
+                {
+                    for(DownloadRow row : downloadRows)
+                    {
+                        row.refresh();
+                    }
+                    downloadsTable.refresh();
+                    updateStatusBar();
+                });
+            }
+        }, 0, 100);
     }
 
     private void updateStatusBar()
     {
-        // TODO: implement
+        int totalDownloads = downloadRows.size();
+        int activeDownloads = 0;
+        long totalSpeed = 0;
+
+        for(DownloadRow row : downloadRows)
+        {
+            String status = row.getStatus();
+            if(status.equalsIgnoreCase("DOWNLOADING")) activeDownloads++;
+        }
+
+        activeDownloadsLabel.setText("Active Downloads: " + activeDownloads);
+        // placeholder for actually calculating speed as a later feature
+        totalSpeedLabel.setText("Speed: " + totalSpeed + " kb/s");
+
+        if(activeDownloads > 0)
+        {
+            statusLabel.setText("Downloading " + activeDownloads + " file(s)...");
+        }
+        else if(totalDownloads > 0)
+        {
+            statusLabel.setText("Ready");
+        }
+        else
+        {
+            statusLabel.setText("Idle");
+        }
     }
 
     // Methods for handling moving and resizing of the window //
@@ -354,10 +411,9 @@ public class MainController
     @FXML
     private void handleClose()
     {
-        if(downloadManager != null) downloadManager.shutdown();
         if(updateTimer != null) updateTimer.cancel();
+        if(downloadManager != null) downloadManager.shutdown();
         Platform.exit();
-        // stage.close();
     }
 
     private void showError(String title, String message)
@@ -373,27 +429,63 @@ public class MainController
     public static class DownloadRow
     {
         private final Download download;
-        
+        private String fileName;
+        private String url;
+        private String status;
+        private double progress;
+        private long downloadedBytes;
+        private long totalBytes;
+
         public DownloadRow(Download download)
         {
             this.download = download;
+            this.fileName = download.getFileName();
+            this.url = download.getUrl();
+            this.status = download.getState().toString();
+            this.progress = download.getProgress();
+            this.downloadedBytes = download.getDownloadedBytes();
+            this.totalBytes = download.getTotalSize();
+        }
+
+        public void refresh()
+        {
+            this.status = download.getState().toString();
+            this.progress = download.getProgress();
+            this.downloadedBytes = download.getDownloadedBytes();
         }
         
         public Download getDownload()
         {
             return download;
         }
-    }
-    
-    private static class DownloadInfo
-    {
-        final String url;
-        final String destination;
-        
-        DownloadInfo(String url, String destination)
+        public String getFileName()
         {
-            this.url = url;
-            this.destination = destination;
+            return fileName;
+        }
+
+        public String getUrl()
+        {
+            return url;
+        }
+
+        public String getStatus()
+        {
+            return status;
+        }
+
+        public double getProgress()
+        {
+            return progress;
+        }
+
+        public long getDownloadedBytes()
+        {
+            return downloadedBytes;
+        }
+
+        public long getTotalBytes()
+        {
+            return totalBytes;
         }
     }
 }
