@@ -10,18 +10,25 @@ import io.rileyhe1.concurrency.Data.DownloadConfig;
 import io.rileyhe1.concurrency.Data.DownloadException;
 import io.rileyhe1.concurrency.Util.Download;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.input.MouseEvent;
@@ -44,8 +51,8 @@ public class MainController
     @FXML private TableColumn<DownloadRow, String> destinationColumn;
     @FXML private TableColumn<DownloadRow, String> urlColumn;
     @FXML private TableColumn<DownloadRow, String> statusColumn;
-    @FXML private TableColumn<DownloadRow, Double> progressColumn;
-    @FXML private TableColumn<DownloadRow, Void> actionsColumn;
+    @FXML private TableColumn<DownloadRow, DownloadRow> progressColumn;
+    @FXML private TableColumn<DownloadRow, DownloadRow> actionsColumn;
     
     @FXML private TextField searchBox;
     @FXML private Label statusLabel;
@@ -119,7 +126,162 @@ public class MainController
 
     private void setupTableColumns()
     {
-        // TODO: implement
+        // set destination column
+        destinationColumn.setCellValueFactory(new PropertyValueFactory<>("fileName"));
+        destinationColumn.setPrefWidth(200);
+
+        // set url column
+        urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
+        urlColumn.setPrefWidth(300);
+
+        // set status column
+        statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusColumn.setPrefWidth(100);
+        statusColumn.setCellFactory(column -> new TableCell<DownloadRow, String>()
+        {
+            @Override
+            protected void updateItem(String status, boolean empty)
+            {
+                super.updateItem(status, empty);
+                
+                if(empty || status == null)
+                {
+                    setText(null);
+                    setStyle("");
+                }
+                else
+                {
+                    setText(status);
+
+                    // color code based on status
+                    switch(status)
+                    {
+                        case "DOWNLOADING":
+                            setStyle("-fx-text-fill: #28A745; -fx-font-weight: bold;");
+                            break;
+                        case "FAILED":
+                        case "CANCELLED":
+                            setStyle("-fx-text-fill: #E74C3C; -fx-font-weight: bold;");
+                            break;
+                        case "PAUSED":
+                            setStyle("-fx-text-fill: #007BFF; -fx-font-weight: bold;");
+                            break;
+                        case "COMPLETED":
+                            setStyle("-fx-text-fill: #6C757D; -fx-font-weight: bold;");
+                            break;
+                    }
+                }
+            }
+        });
+
+        // set progress column
+        progressColumn.setCellValueFactory(cellData -> 
+            new SimpleObjectProperty<>(cellData.getValue()));
+        progressColumn.setPrefWidth(200);
+        progressColumn.setCellFactory(column -> new TableCell<DownloadRow, DownloadRow>()
+        {
+            private final ProgressBar progressBar = new ProgressBar();
+            private final Label progressLabel = new Label();
+            private final VBox container = new VBox(5);
+            
+            {
+                progressBar.setPrefWidth(150);
+                progressBar.setPrefHeight(20);
+                progressLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #495057;");
+                container.setAlignment(Pos.CENTER);
+                container.getChildren().addAll(progressBar, progressLabel);
+            }
+            
+            @Override
+            protected void updateItem(DownloadRow row, boolean empty)
+            {
+                super.updateItem(row, empty);
+                
+                if(empty || row == null)
+                {
+                    setGraphic(null);
+                }
+                else
+                {
+                    double progress = row.getProgress() / 100.0;
+                    progressBar.setProgress(progress);
+                    
+                    // Format progress text
+                    String progressText = String.format("%.1f%% (%s / %s)", 
+                        row.getProgress(),
+                        formatBytes(row.getDownloadedBytes()),
+                        formatBytes(row.getTotalBytes()));
+                    
+                    progressLabel.setText(progressText);
+                    setGraphic(container);
+                }
+            }
+        });
+        
+        // Actions column - shows pause/resume/cancel buttons
+        actionsColumn.setCellValueFactory(cellData -> 
+            new SimpleObjectProperty<>(cellData.getValue()));
+        actionsColumn.setPrefWidth(150);
+        actionsColumn.setCellFactory(column -> new TableCell<DownloadRow, DownloadRow>()
+        {
+            private final Button pauseResumeButton = new Button();
+            private final Button cancelButton = new Button("✖");
+            private final HBox container = new HBox(5);
+            
+            {
+                pauseResumeButton.getStyleClass().add("toolbar-button-info");
+                cancelButton.getStyleClass().add("toolbar-button-cancel");
+                container.setAlignment(Pos.CENTER);
+                container.getChildren().addAll(pauseResumeButton, cancelButton);
+            }
+            
+            @Override
+            protected void updateItem(DownloadRow row, boolean empty)
+            {
+                super.updateItem(row, empty);
+                
+                if(empty || row == null)
+                {
+                    setGraphic(null);
+                }
+                else
+                {
+                    // Configure pause/resume button based on state
+                    String status = row.getStatus();
+                    
+                    if("DOWNLOADING".equals(status))
+                    {
+                        pauseResumeButton.setText("⏸");
+                        pauseResumeButton.setOnAction(e -> handlePause(row));
+                        pauseResumeButton.setDisable(false);
+                    }
+                    else if("PAUSED".equals(status) || "PENDING".equals(status))
+                    {
+                        pauseResumeButton.setText("▶");
+                        pauseResumeButton.setOnAction(e -> handleResume(row));
+                        pauseResumeButton.setDisable(false);
+                    }
+                    else
+                    {
+                        pauseResumeButton.setText("—");
+                        pauseResumeButton.setDisable(true);
+                    }
+                    
+                    // Configure cancel button
+                    if("COMPLETED".equals(status) || "CANCELLED".equals(status))
+                    {
+                        cancelButton.setDisable(true);
+                    }
+                    else
+                    {
+                        cancelButton.setOnAction(e -> handleCancel(row));
+                        cancelButton.setDisable(false);
+                    }
+                    
+                    setGraphic(container);
+                }
+            }
+        });
     }
 
     // Method to load persisted downloads on startup //
@@ -196,6 +358,57 @@ public class MainController
         {
             statusLabel.setText("Idle");
         }
+    }
+
+    // Toolbar button method handlers (add download, pause all, resume all, cancel all, open settings) // 
+
+    @FXML
+    private void handleAddDownload(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleResumeAll(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handlePauseAll(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleCancelAll(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleOpenSettings(MouseEvent event)
+    {
+        // TODO: implement
+    }
+
+    // Methods for Pause, Resume, Cancel of selected download //
+    @FXML
+    private void handlePause(DownloadRow row)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleResume(DownloadRow row)
+    {
+        // TODO: implement
+    }
+
+    @FXML
+    private void handleCancel(DownloadRow row)
+    {
+        // TODO: implement
     }
 
     // Methods for handling moving and resizing of the window //
@@ -318,57 +531,6 @@ public class MainController
         if(!isMaximized && event.getScreenY() - yOffset < 3) handleMaximize();
     }
 
-    // Toolbar button method handlers (add download, pause all, resume all, cancel all, open settings) // 
-
-    @FXML
-    private void handleAddDownload(ActionEvent event)
-    {
-        // TODO: implement
-    }
-
-    @FXML
-    private void handleResumeAll(ActionEvent event)
-    {
-        // TODO: implement
-    }
-
-    @FXML
-    private void handlePauseAll(ActionEvent event)
-    {
-        // TODO: implement
-    }
-
-    @FXML
-    private void handleCancelAll(ActionEvent event)
-    {
-        // TODO: implement
-    }
-
-    @FXML
-    private void handleOpenSettings(ActionEvent event)
-    {
-        // TODO: implement
-    }
-
-    // Methods for Pause, Resume, Cancel of selected download //
-    @FXML
-    private void handlePause(MouseEvent event)
-    {
-        // TODO: implement
-    }
-
-    @FXML
-    private void handleResume(MouseEvent event)
-    {
-        // TODO: implement
-    }
-
-    @FXML
-    private void handleCancel(MouseEvent event)
-    {
-        // TODO: implement
-    }
-
 
     // Methods for handling title bar's minimize, maximize, and close buttons // 
 
@@ -423,6 +585,14 @@ public class MainController
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private String formatBytes(long bytes)
+    {
+        if(bytes < 1024) return bytes + " B";
+        if(bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if(bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
 
     // inner classes //
