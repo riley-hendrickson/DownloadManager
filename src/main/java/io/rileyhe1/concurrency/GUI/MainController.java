@@ -383,6 +383,7 @@ public class MainController
         }
 
         String url = urlResult.get().trim();
+        String fileExtension = url.substring(url.lastIndexOf("."));
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save Download As");
 
@@ -395,7 +396,8 @@ public class MainController
         File file = fileChooser.showSaveDialog(root.getScene().getWindow());
         if(file == null) return;
 
-        String destination = file.getAbsolutePath();
+        String name = file.getName();
+        String destination = name.contains(fileExtension) ? file.getAbsolutePath() : file.getAbsolutePath() + fileExtension;
 
         try
         {
