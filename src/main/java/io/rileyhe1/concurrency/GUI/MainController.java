@@ -11,6 +11,7 @@ import io.rileyhe1.concurrency.DownloadManager;
 import io.rileyhe1.concurrency.Data.DownloadConfig;
 import io.rileyhe1.concurrency.Data.DownloadException;
 import io.rileyhe1.concurrency.Util.Download;
+
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -497,8 +498,6 @@ public class MainController
                     // ignore and continue trying to cancel other downloads
                 }
             }
-
-            downloadRows.removeIf(row -> "CANCELLED".equals(row.getStatus()));
 
             if(cancelled > 0)
             {
