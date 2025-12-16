@@ -37,32 +37,29 @@
             <!-- TOOL BAR -->
             <ToolBar prefHeight="40.0" prefWidth="200.0">
               <items>
-                <Button mnemonicParsing="false" onAction="#handleAddDownload" styleClass="toolbar-button-primary" text="➕ Add New Download">
+                <Button mnemonicParsing="false" onMousePressed="#handleAddDownload" styleClass="toolbar-button-primary" text="➕ Add New Download">
                 <tooltip>
                      <Tooltip showDelay="500ms" text="Add a new file to download" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" onAction="#handleResumeAll" styleClass="toolbar-button-success" text="▶ Resume All">
+                <Button mnemonicParsing="false" onMousePressed="#handleResumeAll" styleClass="toolbar-button-success" text="▶ Resume All">
                 <tooltip>
                      <Tooltip showDelay="500ms" text="Resume downloading all currently paused downloads" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" onAction="#handlePauseAll" styleClass="toolbar-button-info" text="⏸ Pause All">
+                <Button mnemonicParsing="false" onMousePressed="#handlePauseAll" styleClass="toolbar-button-info" text="⏸ Pause All">
                 <tooltip>
                      <Tooltip showDelay="500ms" text="Pause all active downloads" />
                </tooltip>
                 </Button>
 
-                <Button mnemonicParsing="false" onAction="#handleCancelAll" styleClass="toolbar-button-cancel" text="✖ Cancel All">
+                <Button mnemonicParsing="false" onMousePressed="#handleCancelAll" styleClass="toolbar-button-cancel" text="✖ Cancel All">
                 <tooltip>
                      <Tooltip showDelay="500ms" text="Cancel all active/paused downloads" />
                </tooltip>
                 </Button>
-
-                  <Pane HBox.hgrow="ALWAYS" />
-                  <Button alignment="CENTER_RIGHT" mnemonicParsing="false" onAction="#handleOpenSettings" styleClass="toolbar-button-primary" text="Settings" textAlignment="CENTER" />
               </items>
             </ToolBar>
             <!-- SEARCH BOX -->
