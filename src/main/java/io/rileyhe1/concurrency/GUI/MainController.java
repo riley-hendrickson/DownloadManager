@@ -1,5 +1,6 @@
 package io.rileyhe1.concurrency.GUI;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -14,12 +15,13 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableCell;
@@ -31,6 +33,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.input.MouseEvent;
@@ -90,6 +93,7 @@ public class MainController
     {
         try
         {
+            System.out.println(System.getProperty("java.io.tmpdir"));
             // Setup table columns
             setupTableColumns();
 
@@ -362,7 +366,7 @@ public class MainController
         }
     }
 
-    // Toolbar button method handlers (add download, pause all, resume all, cancel all, open settings) // 
+    // Toolbar button method handlers (add download, pause all, resume all, cancel all) // 
 
     @FXML
     private void handleAddDownload(MouseEvent event)
@@ -379,50 +383,169 @@ public class MainController
         }
 
         String url = urlResult.get().trim();
-        System.out.println(url);
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Download As");
+
+        String suggestedName = url.substring(url.lastIndexOf("/") + 1);
+        if(!suggestedName.isEmpty())
+        {
+            fileChooser.setInitialFileName(suggestedName);
+        }
+
+        File file = fileChooser.showSaveDialog(root.getScene().getWindow());
+        if(file == null) return;
+
+        String destination = file.getAbsolutePath();
+
+        try
+        {
+            Download download = downloadManager.startDownload(url, destination);
+            DownloadRow row = new DownloadRow(download);
+            downloadRows.add(row);
+
+            statusLabel.setText("Started Download: " + file.getName());
+        }
+        catch(Exception e)
+        {
+            showError("Download Error", "Failed to start download: " + e.getMessage());
+        }
     }
 
     @FXML
     private void handleResumeAll(MouseEvent event)
     {
-        // TODO: implement
+        int resumed = 0; 
+
+        for(DownloadRow row : downloadRows)
+        {
+            try
+            {
+                String status = row.getStatus();
+                if("PAUSED".equals(status) || "PAUSED".equals(status))
+                {
+                    downloadManager.resumeDownload(row.getDownload().getId());
+                    resumed++;
+                }
+            }
+            catch(Exception e)
+            {
+                // ignore and try to continue resuming other downloads
+            }
+        }
+
+        if(resumed > 0)
+        {
+            statusLabel.setText("Resumed " + resumed + " download(s)");
+        }
     }
 
     @FXML
     private void handlePauseAll(MouseEvent event)
     {
-        // TODO: implement
+        int paused = 0;
+
+        for(DownloadRow row : downloadRows)
+        {
+            try
+            {
+                if("DOWNLOADING".equals(row.getStatus()))
+                {
+                    downloadManager.pauseDownload(row.getDownload().getId());
+                    paused++;
+                }
+            }
+            catch(Exception e)
+            {
+                // ignore and continue to attempt pausing other downloads
+            }
+        }
+
+        if(paused > 0)
+        {
+            statusLabel.setText("Paused " + paused + " download(s)");
+        }
     }
 
     @FXML
     private void handleCancelAll(MouseEvent event)
     {
-        // TODO: implement
-    }
+        Alert alert = new Alert(AlertType.CONFIRMATION);
+        alert.setTitle("Confirm Cancel All");
+        alert.setHeaderText("Cancel all downloads?");
+        alert.setContentText("This will cancel all active and paused downloads. This action cannot be undone.");
+        
+        Optional<ButtonType> result = alert.showAndWait();
+        if(result.isPresent() && result.get() == ButtonType.OK)
+        {
+            int cancelled = 0;
 
-    @FXML
-    private void handleOpenSettings(MouseEvent event)
-    {
-        // TODO: implement
-    }
+            for(DownloadRow row : downloadRows)
+            {
+                try
+                {
+                    String status = row.getStatus();
+                    if(!status.equals("CANCELLED") && !status.equals("COMPLETED"))
+                    {
+                        downloadManager.cancelDownload(row.getDownload().getId());
+                        cancelled++;   
+                    }
+                }
+                catch(Exception e)
+                {
+                    // ignore and continue trying to cancel other downloads
+                }
+            }
+
+            downloadRows.removeIf(row -> "CANCELLED".equals(row.getStatus()));
+
+            if(cancelled > 0)
+            {
+                statusLabel.setText("Cancelled " + cancelled + " download(s)");
+            }
+        }
+    }   
 
     // Methods for Pause, Resume, Cancel of selected download //
     @FXML
     private void handlePause(DownloadRow row)
     {
-        // TODO: implement
+        try
+        {
+            downloadManager.pauseDownload(row.getDownload().getId());
+            statusLabel.setText("Paused " + row.getFileName());
+        }
+        catch(Exception e)
+        {
+            showError("Pause Error", "Failed to pause download for  " + row.getFileName() + " " + e.getMessage());
+        }
     }
 
     @FXML
     private void handleResume(DownloadRow row)
     {
-        // TODO: implement
+        try
+        {
+            downloadManager.resumeDownload(row.getDownload().getId());
+            statusLabel.setText("Resumed " + row.getFileName());
+        }
+        catch(Exception e)
+        {
+            showError("Resume Error", "Failed to resume download for  " + row.getFileName() + " " + e.getMessage());
+        }
     }
 
     @FXML
     private void handleCancel(DownloadRow row)
     {
-        // TODO: implement
+        try
+        {
+            downloadManager.cancelDownload(row.getDownload().getId());
+            statusLabel.setText("Cancelled " + row.getFileName());
+        }
+        catch(Exception e)
+        {
+            showError("Cancellation Error", "Failed to cancel download for  " + row.getFileName() + " " + e.getMessage());
+        }
     }
 
     // Methods for handling moving and resizing of the window //
