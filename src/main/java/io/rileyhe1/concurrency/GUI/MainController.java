@@ -2,6 +2,7 @@ package io.rileyhe1.concurrency.GUI;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -25,6 +26,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -365,7 +367,19 @@ public class MainController
     @FXML
     private void handleAddDownload(MouseEvent event)
     {
-        // TODO: implement
+        TextInputDialog urlDialog = new TextInputDialog();
+        urlDialog.setTitle("Start a New Download");
+        urlDialog.setHeaderText("Enter download URL");
+        urlDialog.setContentText("URL:");
+
+        Optional<String> urlResult = urlDialog.showAndWait();
+        if(!urlResult.isPresent() || urlResult.get().trim().isEmpty())
+        {
+            return;
+        }
+
+        String url = urlResult.get().trim();
+        System.out.println(url);
     }
 
     @FXML
