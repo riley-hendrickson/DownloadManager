@@ -52,7 +52,34 @@ Comprehensive JUnit 5 test suite with 98% reliability:
 
 ## 🚀 Getting Started
 
+### Prerequisites
+- Java 21+
+- Maven 3.6+
 
+### Installation & Running
+```bash
+# Clone the repository
+git clone https://github.com/riley-hendrickson/DownloadManager.git
+cd DownloadManager
+
+# Run the application
+mvn clean javafx:run
+```
+
+### Running Tests
+```bash
+# Run all tests
+mvn test
+
+# Run specific test suite
+mvn test -Dtest=DownloadManagerTest
+
+# Run specific test within a test suite
+mvn test -Dtest=DownloadManagerTest#testStartDownloadSuccess
+
+# Run only fast tests (skip network tests)
+mvn test -Dgroups="!network"
+```
 
 ## 📝 Lessons Learned
 
