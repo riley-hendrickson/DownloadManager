@@ -424,7 +424,7 @@ public class MainController
             try
             {
                 String status = row.getStatus();
-                if("PAUSED".equals(status) || "PAUSED".equals(status))
+                if("PAUSED".equals(status) || "PENDING".equals(status))
                 {
                     downloadManager.resumeDownload(row.getDownload().getId());
                     resumed++;
