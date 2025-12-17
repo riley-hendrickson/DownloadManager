@@ -678,6 +678,7 @@ public class MainController
     @FXML
     private void handleTitleBarDragged(MouseEvent event)
     {
+        if(resizing) return;
         // only move the window if the user is attempting to move it within the visual bounds
         if(event.getScreenX() - xOffset > bounds.getMinX() && event.getScreenX() - xOffset < bounds.getMaxX()) stage.setX(event.getScreenX() - xOffset);
         if(event.getScreenY() - yOffset > bounds.getMinY() && event.getScreenY() - yOffset < bounds.getMaxY()) stage.setY(event.getScreenY() - yOffset);
