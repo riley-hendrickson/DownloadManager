@@ -13,7 +13,13 @@ import io.rileyhe1.concurrency.Data.DownloadException;
 import io.rileyhe1.concurrency.Util.Download;
 
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -30,7 +36,6 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -134,15 +139,15 @@ public class MainController
     private void setupTableColumns()
     {
         // set destination column
-        destinationColumn.setCellValueFactory(new PropertyValueFactory<>("fileName"));
+        destinationColumn.setCellValueFactory(cellData -> cellData.getValue().getFileNameProperty());
         destinationColumn.setPrefWidth(200);
 
         // set url column
-        urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
+        urlColumn.setCellValueFactory(cellData -> cellData.getValue().getUrlProperty());
         urlColumn.setPrefWidth(300);
 
         // set status column
-        statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusColumn.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
         statusColumn.setPrefWidth(100);
         statusColumn.setCellFactory(column -> new TableCell<DownloadRow, String>()
         {
@@ -210,18 +215,31 @@ public class MainController
                 }
                 else
                 {
-                    double progress = row.getProgress() / 100.0;
-                    progressBar.setProgress(progress);
+                    // Bind progress bar to property
+                    progressBar.progressProperty().bind(row.getProgressProperty().divide(100.0));
                     
-                    // Format progress text
-                    String progressText = String.format("%.1f%% (%s / %s)", 
-                        row.getProgress(),
-                        formatBytes(row.getDownloadedBytes()),
-                        formatBytes(row.getTotalBytes()));
+                    // Update label based on properties
+                    row.getProgressProperty().addListener((obs, oldVal, newVal) -> 
+                    {
+                        updateProgressLabel(row);
+                    });
+                    row.getDownloadedBytesProperty().addListener((obs, oldVal, newVal) -> 
+                    {
+                        updateProgressLabel(row);
+                    });
                     
-                    progressLabel.setText(progressText);
+                    updateProgressLabel(row);
                     setGraphic(container);
-                }
+                    }
+            }
+
+            private void updateProgressLabel(DownloadRow row)
+            {
+                String progressText = String.format("%.1f%% (%s / %s)", 
+                    row.getProgress(),
+                    formatBytes(row.getDownloadedBytes()),
+                    formatBytes(row.getTotalBytes()));
+                progressLabel.setText(progressText);
             }
         });
         
@@ -253,39 +271,47 @@ public class MainController
                 }
                 else
                 {
-                    // Configure pause/resume button based on state
-                    String status = row.getStatus();
+                    // Listen to status changes
+                    row.getStatusProperty().addListener((obs, oldVal, newVal) -> 
+                    {
+                        updateButtons(row);
+                    });
                     
-                    if("DOWNLOADING".equals(status))
-                    {
-                        pauseResumeButton.setText("⏸");
-                        pauseResumeButton.setOnAction(e -> handlePause(row));
-                        pauseResumeButton.setDisable(false);
-                    }
-                    else if("PAUSED".equals(status) || "PENDING".equals(status))
-                    {
-                        pauseResumeButton.setText("▶");
-                        pauseResumeButton.setOnAction(e -> handleResume(row));
-                        pauseResumeButton.setDisable(false);
-                    }
-                    else
-                    {
-                        pauseResumeButton.setText("—");
-                        pauseResumeButton.setDisable(true);
-                    }
-                    
-                    // Configure cancel button
-                    if("COMPLETED".equals(status) || "CANCELLED".equals(status))
-                    {
-                        cancelButton.setDisable(true);
-                    }
-                    else
-                    {
-                        cancelButton.setOnAction(e -> handleCancel(row));
-                        cancelButton.setDisable(false);
-                    }
-                    
+                    updateButtons(row);
                     setGraphic(container);
+                }
+            }
+
+            private void updateButtons(DownloadRow row)
+            {
+                String status = row.getStatus();
+                
+                if("DOWNLOADING".equals(status))
+                {
+                    pauseResumeButton.setText("⏸");
+                    pauseResumeButton.setOnAction(e -> handlePause(row));
+                    pauseResumeButton.setDisable(false);
+                }
+                else if("PAUSED".equals(status) || "PENDING".equals(status))
+                {
+                    pauseResumeButton.setText("▶");
+                    pauseResumeButton.setOnAction(e -> handleResume(row));
+                    pauseResumeButton.setDisable(false);
+                }
+                else
+                {
+                    pauseResumeButton.setText("—");
+                    pauseResumeButton.setDisable(true);
+                }
+                
+                if("COMPLETED".equals(status) || "CANCELLED".equals(status))
+                {
+                    cancelButton.setDisable(true);
+                }
+                else
+                {
+                    cancelButton.setOnAction(e -> handleCancel(row));
+                    cancelButton.setDisable(false);
                 }
             }
         });
@@ -330,7 +356,6 @@ public class MainController
                     {
                         row.refresh();
                     }
-                    downloadsTable.refresh();
                     updateStatusBar();
                 });
             }
@@ -737,63 +762,87 @@ public class MainController
     public static class DownloadRow
     {
         private final Download download;
-        private String fileName;
-        private String url;
-        private String status;
-        private double progress;
-        private long downloadedBytes;
-        private long totalBytes;
+        private final StringProperty fileName;
+        private final StringProperty url;
+        private final StringProperty status;
+        private final DoubleProperty progress;
+        private final LongProperty downloadedBytes;
+        private final LongProperty totalBytes;
 
         public DownloadRow(Download download)
         {
             this.download = download;
-            this.fileName = download.getFileName();
-            this.url = download.getUrl();
-            this.status = download.getState().toString();
-            this.progress = download.getProgress();
-            this.downloadedBytes = download.getDownloadedBytes();
-            this.totalBytes = download.getTotalSize();
+            this.fileName = new SimpleStringProperty(download.getFileName());
+            this.url = new SimpleStringProperty(download.getUrl());
+            this.status = new SimpleStringProperty(download.getState().toString());
+            this.progress = new SimpleDoubleProperty(download.getProgress());
+            this.downloadedBytes = new SimpleLongProperty(download.getDownloadedBytes());
+            this.totalBytes = new SimpleLongProperty(download.getTotalSize());
         }
 
         public void refresh()
         {
-            this.status = download.getState().toString();
-            this.progress = download.getProgress();
-            this.downloadedBytes = download.getDownloadedBytes();
+            status.set(download.getState().toString());
+            progress.set(download.getProgress());
+            downloadedBytes.set(download.getDownloadedBytes());
         }
         
         public Download getDownload()
         {
             return download;
         }
-        public String getFileName()
+
+        public StringProperty getFileNameProperty()
         {
             return fileName;
         }
-
-        public String getUrl()
+        public String getFileName()
+        {
+            return fileName.get();
+        }
+        public StringProperty getUrlProperty()
         {
             return url;
         }
+        public String getUrl()
+        {
+            return url.get();
+        }
 
-        public String getStatus()
+        public StringProperty getStatusProperty()
         {
             return status;
         }
+        public String getStatus()
+        {
+            return status.get();
+        }
 
-        public double getProgress()
+        public DoubleProperty getProgressProperty()
         {
             return progress;
         }
+        public double getProgress()
+        {
+            return progress.get();
+        }
 
-        public long getDownloadedBytes()
+        public LongProperty getDownloadedBytesProperty()
         {
             return downloadedBytes;
         }
+        public long getDownloadedBytes()
+        {
+            return downloadedBytes.get();
+        }
 
-        public long getTotalBytes()
+        public LongProperty getTotalBytesProperty()
         {
             return totalBytes;
+        }
+        public long getTotalBytes()
+        {
+            return totalBytes.get();
         }
     }
 }
