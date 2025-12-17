@@ -141,14 +141,17 @@ public class MainController
         // set destination column
         destinationColumn.setCellValueFactory(cellData -> cellData.getValue().getFileNameProperty());
         destinationColumn.setPrefWidth(200);
+        destinationColumn.getStyleClass().add("destination-cell");
 
         // set url column
         urlColumn.setCellValueFactory(cellData -> cellData.getValue().getUrlProperty());
         urlColumn.setPrefWidth(300);
+        urlColumn.getStyleClass().add("url-cell");
 
         // set status column
         statusColumn.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
         statusColumn.setPrefWidth(100);
+        statusColumn.getStyleClass().add("status-cell");
         statusColumn.setCellFactory(column -> new TableCell<DownloadRow, String>()
         {
             @Override
@@ -195,12 +198,19 @@ public class MainController
             private final ProgressBar progressBar = new ProgressBar();
             private final Label progressLabel = new Label();
             private final VBox container = new VBox(5);
+            private DownloadRow currentRow = null;
             
             {
-                progressBar.setPrefWidth(150);
-                progressBar.setPrefHeight(20);
-                progressLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #495057;");
+                progressBar.setPrefWidth(130);
+                progressBar.setMinWidth(130);
+                progressBar.setMaxWidth(130);
+                progressBar.setPrefHeight(16);
+                progressBar.setMinHeight(16);
+
+                progressLabel.setStyle("-fx-font-size: 13; -fx-text-fill: #495057;");
                 container.setAlignment(Pos.CENTER);
+                container.setSpacing(3);
+                container.setPrefHeight(50);
                 container.getChildren().addAll(progressBar, progressLabel);
             }
             
@@ -211,26 +221,44 @@ public class MainController
                 
                 if(empty || row == null)
                 {
+                    if(currentRow != null)
+                    {
+                        progressBar.progressProperty().unbind();
+                    }
+                    currentRow = null;
                     setGraphic(null);
                 }
                 else
                 {
-                    // Bind progress bar to property
-                    progressBar.progressProperty().bind(row.getProgressProperty().divide(100.0));
+                    // only bind progress bar to property if this is a new row
+                    if(currentRow != row)
+                    {
+                        // Unbind from previous row if exists
+                        if(currentRow != null)
+                        {
+                            progressBar.progressProperty().unbind();
+                        }
+                
+                        currentRow = row;
+
+                        // bind progress bar to property
+                        progressBar.progressProperty().bind(row.getProgressProperty().divide(100.0));
                     
-                    // Update label based on properties
-                    row.getProgressProperty().addListener((obs, oldVal, newVal) -> 
-                    {
-                        updateProgressLabel(row);
-                    });
-                    row.getDownloadedBytesProperty().addListener((obs, oldVal, newVal) -> 
-                    {
-                        updateProgressLabel(row);
-                    });
+                        // Add listeners for label updates
+                        row.getProgressProperty().addListener((obs, oldVal, newVal) -> 
+                        {
+                            updateProgressLabel(row);
+                        });
+                        row.getDownloadedBytesProperty().addListener((obs, oldVal, newVal) -> 
+                        {
+                            updateProgressLabel(row);
+                        });
+                    }
                     
                     updateProgressLabel(row);
                     setGraphic(container);
-                    }
+                }
+                downloadsTable.setFixedCellSize(60);
             }
 
             private void updateProgressLabel(DownloadRow row)
@@ -773,7 +801,7 @@ public class MainController
         public DownloadRow(Download download)
         {
             this.download = download;
-            this.fileName = new SimpleStringProperty(download.getFileName());
+            this.fileName = new SimpleStringProperty(download.getDestination());
             this.url = new SimpleStringProperty(download.getUrl());
             this.status = new SimpleStringProperty(download.getState().toString());
             this.progress = new SimpleDoubleProperty(download.getProgress());

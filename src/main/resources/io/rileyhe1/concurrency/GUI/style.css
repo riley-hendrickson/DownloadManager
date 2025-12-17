@@ -135,7 +135,7 @@
     -fx-padding: 6 12 6 12;
     -fx-background-radius: 8;
     -fx-cursor: hand;
-    -fx-font-size: 13;
+    -fx-font-size: 15;
 }
 
 .toolbar-button-info:hover
@@ -182,7 +182,7 @@
     -fx-padding: 6 12 6 12;
     -fx-background-radius: 8;
     -fx-cursor: hand;
-    -fx-font-size: 13;
+    -fx-font-size: 15;
 }
 .toolbar-button-cancel:hover
 {
@@ -384,4 +384,23 @@
     -fx-font-family: "Segoe UI";
     -fx-background-color: #F7F9FC;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 15, 0, 0, 0);
+}
+
+.destination-cell
+{
+    -fx-font-weight: bold;
+    -fx-text-fill: #2C3E50;
+    -fx-font-size: 14;
+}
+
+.url-cell
+{
+    -fx-text-fill: #0056B3;
+    -fx-font-size: 14;
+    -fx-font-style: italic;
+}
+.status-cell
+{
+    -fx-font-weight: bold;
+    -fx-font-size: 14;
 }
