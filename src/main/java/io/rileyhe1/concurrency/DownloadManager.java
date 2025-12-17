@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
@@ -108,24 +109,51 @@ public class DownloadManager
 
     private void saveDownloads() throws IOException
     {
-        List<DownloadSnapshot> snapshots = new ArrayList<>();
+        List<DownloadSnapshot> snapshotsToSave = new ArrayList<>();
+
+        // first, load existing downloads from file
+        if(Files.exists(Paths.get(DOWNLOADS_FILE)))
+        {
+            try(FileReader reader = new FileReader(DOWNLOADS_FILE))
+            {
+                Gson gson = new Gson();
+                Type listType = new TypeToken<List<DownloadSnapshot>>(){}.getType();
+                List<DownloadSnapshot> existingSnapshots = gson.fromJson(reader, listType);
+                
+                if(existingSnapshots != null)
+                {
+                    // Keep all existing downloads
+                    snapshotsToSave.addAll(existingSnapshots);
+                }
+            }
+            catch(Exception e)
+            {
+                System.err.println("Error loading existing downloads.json: " + e.getMessage());
+            }
+        }
+
+        // Then we collect the IDs of downloads currently loaded in this session:
+        Set<String> currentSessionIDs = activeDownloads.keySet();
+
+        // Remove old entries for downloads that are in current session so we can add them once more with updated state
+        snapshotsToSave.removeIf(s -> currentSessionIDs.contains(s.getId()));
         
         // Collect downloads that should be persisted
         for(Download download : activeDownloads.values())
         {
             DownloadState state = download.getState();
-            if(state == DownloadState.STOPPED)
+            if(state == DownloadState.STOPPED || state == DownloadState.PENDING)
             {
-                snapshots.add(download.createSnapshot());
+                snapshotsToSave.add(download.createSnapshot());
             }
         }
         
-        // Convert to JSON with pretty printing
+        // Write merged saved download data
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String json = gson.toJson(snapshots);
+        String json = gson.toJson(snapshotsToSave);
         
         // Write to file
-        try(FileWriter writer = new FileWriter(DOWNLOADS_FILE))
+        try(FileWriter writer = new FileWriter(DOWNLOADS_FILE, false))
         {
             writer.write(json);
         }
@@ -143,19 +171,19 @@ public class DownloadManager
         Gson gson = new Gson();
         Type listType = new TypeToken<List<DownloadSnapshot>>(){}.getType();
         
-        List<DownloadSnapshot> snapshots;
+        List<DownloadSnapshot> snapshotsToSave;
         try(FileReader reader = new FileReader(DOWNLOADS_FILE))
         {
-            snapshots = gson.fromJson(reader, listType);
+            snapshotsToSave = gson.fromJson(reader, listType);
         }
         
-        if(snapshots == null || snapshots.isEmpty())
+        if(snapshotsToSave == null || snapshotsToSave.isEmpty())
         {
             return;
         }
         
-        // Recreate downloads from snapshots
-        for(DownloadSnapshot snapshot : snapshots)
+        // Recreate downloads from snapshotsToSave
+        for(DownloadSnapshot snapshot : snapshotsToSave)
         {
             // Create ProgressTracker with saved progress
             ProgressTracker tracker = new ProgressTracker();
