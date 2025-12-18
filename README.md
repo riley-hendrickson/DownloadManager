@@ -12,7 +12,9 @@ A high-performance, multi-threaded download manager built with Java featuring pa
 
 ## 🎬 Demo
 
-https://github.com/riley-hendrickson/DownloadManager/releases/download/v0/DownloadManagerDemo.-.1080p.mp4
+
+https://github.com/user-attachments/assets/ea8c1c17-fcfb-485c-b6c1-782848a9d922
+
 
 ## 🏗️ Architecture
 
@@ -86,4 +88,5 @@ mvn test -Dgroups="!network"
 - Importance of fine-grained resource isolation in concurrent systems
 - Strong system design in larger scale projects and how to effectively manage communication between different components and classes
 - Benefits of wait/notify over Thread.sleep() for reliable testing
+
 - Value of comprehensive test suites in catching bugs and race conditions early
