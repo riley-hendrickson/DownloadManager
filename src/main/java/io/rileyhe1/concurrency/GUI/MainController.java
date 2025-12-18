@@ -429,6 +429,12 @@ public class MainController
         urlDialog.setTitle("Start a New Download");
         urlDialog.setHeaderText("Enter download URL");
         urlDialog.setContentText("URL:");
+        // Resize the dialog
+        urlDialog.getDialogPane().setPrefWidth(600);  // Set preferred width
+        urlDialog.getDialogPane().setPrefHeight(200); // Set preferred height (optional)
+        
+        // Make the text field wider
+        urlDialog.getEditor().setPrefWidth(500);
 
         Optional<String> urlResult = urlDialog.showAndWait();
         if(!urlResult.isPresent() || urlResult.get().trim().isEmpty())
