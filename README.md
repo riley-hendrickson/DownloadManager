@@ -12,7 +12,7 @@ A high-performance, multi-threaded download manager built with Java featuring pa
 
 ## 🎬 Demo
 
-
+https://github.com/riley-hendrickson/DownloadManager/releases/download/v0/DownloadManagerDemo.-.1080p.mp4
 
 ## 🏗️ Architecture
 
