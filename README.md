@@ -88,5 +88,5 @@ mvn test -Dgroups="!network"
 - Importance of fine-grained resource isolation in concurrent systems
 - Strong system design in larger scale projects and how to effectively manage communication between different components and classes
 - Benefits of wait/notify over Thread.sleep() for reliable testing
-
 - Value of comprehensive test suites in catching bugs and race conditions early
+- GUI Integration and Design with JavaFX
