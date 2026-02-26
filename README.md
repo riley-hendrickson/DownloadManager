@@ -2,7 +2,7 @@
 
 A high-performance, multi-threaded download manager built with Java featuring pause/resume functionality, persistent state management, and a modern JavaFX GUI.
 
-## 🎯 Key Features
+## Key Features
 
 - **Concurrent Chunk Downloading** - Downloads large files in parallel chunks for maximum speed
 - **Pause/Resume/Cancel** - Full download lifecycle management with state persistence
@@ -10,13 +10,13 @@ A high-performance, multi-threaded download manager built with Java featuring pa
 - **Persistent Storage** - Automatically saves and restores downloads across sessions
 - **Thread-Safe Architecture** - Per-download thread pools prevent resource contention
 
-## 🎬 Demo
+## Demo
 
 
 https://github.com/user-attachments/assets/ea8c1c17-fcfb-485c-b6c1-782848a9d922
 
 
-## 🏗️ Architecture
+## Architecture
 
 ### Concurrency Design
 - Per-download ExecutorService instances eliminate thread pool starvation
@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/ea8c1c17-fcfb-485c-b6c1-782848a9d922
 - **Factory Pattern** - Implemented in ChunkResult for varying success/failure states
 - **Observer Pattern** - Implemented in ProgressTracker to produce real-time updates
 
-## 🧪 Testing
+## Testing
 
 Comprehensive JUnit 5 test suite with 98% reliability:
 - Unit tests for all core components
@@ -36,7 +36,7 @@ Comprehensive JUnit 5 test suite with 98% reliability:
 - Concurrent stress tests validating thread safety
 - Network tests with real file downloads
 
-## 🛠️ Technologies
+## Technologies
 
 - Java 21
 - JavaFX for GUI
@@ -44,7 +44,7 @@ Comprehensive JUnit 5 test suite with 98% reliability:
 - JUnit 5 for testing
 - Gson for JSON persistence
 
-## 📊 Technical Highlights
+## Technical Highlights
 
 **Problem:** Thread pool starvation when multiple large downloads compete for threads
 
@@ -52,7 +52,7 @@ Comprehensive JUnit 5 test suite with 98% reliability:
 
 **Result:** Eliminated resource contention and improved download completion times by 40%
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Java 21+
@@ -83,10 +83,11 @@ mvn test -Dtest=DownloadManagerTest#testStartDownloadSuccess
 mvn test -Dgroups="!network"
 ```
 
-## 📝 Lessons Learned
+## Lessons Learned
 
 - Importance of fine-grained resource isolation in concurrent systems
 - Strong system design in larger scale projects and how to effectively manage communication between different components and classes
 - Benefits of wait/notify over Thread.sleep() for reliable testing
 - Value of comprehensive test suites in catching bugs and race conditions early
 - GUI Integration and Design with JavaFX
+
